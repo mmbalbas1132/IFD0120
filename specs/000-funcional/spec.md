@@ -1,0 +1,580 @@
+# Especificación Funcional (Maestra) — Gestor Académico de Ciclo Formativo (GestorFP)
+
+**Estado:** Aprobada para desarrollo (iteración 4)
+**Autor:** Manuel María Balbás Naveira
+**Fecha:** 2026-09-22 (v1.0) · revisada 2026-09-22 (v1.1 — reestructuración en 3 specs por módulo;
+v1.2 — medidas de seguridad concretas para RNF-002/003, nuevos RNF-011/012/013, ver
+`docs/adr/0002-seguridad-sesion-y-datos.md`; v1.3 — WCAG 2.2 AA en OT-3, alineado con
+`memory/constitution.md` v3.0.0 tras `docs/adr/0003-constitucion-agnostica-tecnologia.md`)
+**Rige bajo:** `memory/constitution.md` v3.0.0
+**Certificado de referencia:** IFCD0210 — Desarrollo de aplicaciones con tecnologías web
+
+> **Este documento es la única fuente del "qué"** (historias de usuario, requisitos, modelo de
+> datos, contrato de API). El "cómo" y el "cuándo" de cada capa se detallan en el `plan.md` y
+> `tasks.md` de su módulo correspondiente, cada uno desarrollado en su propia rama:
+>
+> | Spec | Módulo del certificado | Rama |
+> |---|---|---|
+> | `specs/001-entorno-cliente/` | MF0491_3 — Programación web en el entorno cliente | `feature/001-entorno-cliente` |
+> | `specs/002-entorno-servidor/` | MF0492_3 — Programación web en el entorno servidor | `feature/002-entorno-servidor` |
+> | `specs/003-implantacion/` | MF0493_3 — Implantación de aplicaciones web | `feature/003-implantacion` |
+>
+> Ninguna historia de usuario, requisito o entidad de este documento se duplica en los documentos
+> de módulo: si algo cambia aquí, se actualiza aquí y solo aquí (Principio 1 de la constitución).
+
+---
+
+## 1. Resumen ejecutivo
+
+GestorFP es una aplicación web que digitaliza la gestión académica de un **ciclo formativo**:
+módulos y unidades formativas, tareas y entregas, calificaciones, recursos didácticos y
+comunicados. Sustituye el uso disperso de correo electrónico, hojas de cálculo y carpetas
+compartidas por un único sistema con roles diferenciados para equipo docente, alumnado y
+visitantes.
+
+El proyecto se construye siguiendo un flujo **spec-driven** y está diseñado para que su
+desarrollo ejercite, de forma trazable y **en el mismo orden en que el certificado las enseña**,
+las tres unidades de competencia de IFCD0210: desarrollo en entorno cliente (UC0491_3), desarrollo
+en entorno servidor (UC0492_3) e implantación/verificación/documentación (UC0493_3). Ver §11 sobre
+una decisión de stack que matiza esta trazabilidad en el entorno cliente.
+
+## 2. Objetivos
+
+### 2.1 Objetivos de negocio
+
+| ID | Objetivo | Métrica de éxito |
+|---|---|---|
+| OB-1 | Centralizar la gestión de tareas y calificaciones de un módulo | 100% de las tareas del módulo publicadas y calificadas dentro de la plataforma (0 uso de canales alternativos) |
+| OB-2 | Reducir el tiempo administrativo del equipo docente | ≥ 30% de reducción en tiempo dedicado a registrar calificaciones frente al proceso manual actual |
+| OB-3 | Mejorar la transparencia del progreso académico para el alumnado | ≥ 90% del alumnado consulta sus calificaciones a través de la plataforma en lugar de preguntar directamente |
+| OB-4 | Servir como proyecto de referencia docente del certificado IFCD0210 | 100% de los RF trazados a una unidad de competencia (ver §10) |
+| OB-5 | Servir como pieza de portfolio profesional para búsqueda de empleo remoto | Stack y prácticas (React, testing, CI/CD) representativas del mercado laboral actual |
+
+### 2.2 Objetivos técnicos
+
+| ID | Objetivo | Métrica de éxito |
+|---|---|---|
+| OT-1 | Cumplir la Constitución del proyecto sin excepciones | 0 incumplimientos abiertos en `main` |
+| OT-2 | Cobertura de pruebas en capa de servicio (backend) | ≥ 70% (JaCoCo) |
+| OT-3 | Accesibilidad WCAG 2.2 AA | Puntuación Lighthouse Accessibility ≥ 90 en todas las vistas |
+| OT-4 | Rendimiento de la API | p95 < 2 s por endpoint bajo carga nominal |
+
+## 3. Alcance
+
+### 3.1 Dentro del alcance (v1.0)
+
+- Gestión de usuarios y roles (alta, edición, baja lógica, cambio de contraseña).
+- Gestión de módulos y unidades formativas de un único ciclo formativo.
+- Matriculación de alumnado en módulos.
+- Publicación de tareas (con fecha límite y adjuntos) por unidad formativa.
+- Entrega de tareas por el alumnado (fichero y/o comentario) antes o después de la fecha límite
+  (marcada como fuera de plazo).
+- Calificación de entregas por el equipo docente, con observaciones.
+- Publicación de recursos didácticos (documentos, vídeos, enlaces) por unidad formativa.
+- Publicación de anuncios/comunicados a nivel de módulo.
+- Panel público (visitante) con información general del ciclo: módulos, horario, requisitos de
+  acceso — sin datos personales de alumnado.
+- API REST documentada (OpenAPI) que expone toda la funcionalidad anterior (contrato en §12).
+- Autenticación JWT y autorización basada en roles.
+
+### 3.2 Fuera del alcance (v1.0)
+
+- Mensajería privada / chat en tiempo real entre usuarios.
+- Videoconferencia o clases en directo integradas.
+- Generación automática de boletines de notas oficiales / integración con Séneca u otras
+  plataformas autonómicas de gestión educativa.
+- Pagos o gestión económica de matrícula.
+- Aplicación móvil nativa (la web es responsive, pero no hay app iOS/Android).
+- Multi-tenant (gestión de varios centros o ciclos simultáneos).
+- Internacionalización (i18n): la aplicación se entrega únicamente en español.
+- **Módulo MP0391** (Prácticas Profesionales No Laborales, 80h) del certificado: es una estancia
+  formativa en empresa (comportamiento, integración, PRL); no tiene contenido de desarrollo
+  software y por tanto no genera ningún requisito funcional en esta aplicación. Se menciona aquí
+  explícitamente para dejar constancia de que su ausencia es intencionada, no un olvido.
+
+## 4. Usuarios y roles
+
+| Rol | Descripción | Autenticado |
+|---|---|---|
+| **ADMINISTRADOR** | Jefatura de estudios / coordinación del ciclo. Gestiona usuarios, módulos, unidades formativas y matriculaciones. Acceso completo. | Sí |
+| **DOCENTE** | Imparte uno o más módulos. Publica tareas, recursos y anuncios de sus módulos; califica entregas de su alumnado. | Sí |
+| **ALUMNO** | Matriculado en uno o más módulos. Consulta tareas/recursos/anuncios de sus módulos, entrega tareas y consulta sus propias calificaciones. | Sí |
+| **VISITANTE** | Público no autenticado. Consulta información general del ciclo (módulos, descripción, horario). Sin acceso a datos académicos individuales. | No |
+
+## 5. Historias de usuario
+
+Formato: *Como [rol], quiero [acción] para [beneficio]*, con criterios de aceptación en Gherkin
+(Given/When/Then). Cada historia referencia su(s) requisito(s) funcional(es) en §6. **Estos
+criterios son independientes de la tecnología de implementación**: el módulo `001-entorno-cliente`
+los prueba contra una API simulada (mock) y el módulo `003-implantacion` los reejecuta contra la
+API real como prueba de regresión.
+
+### HU-01 — Publicar una tarea
+
+**Como** DOCENTE, **quiero** publicar una tarea en una unidad formativa de mi módulo **para**
+que el alumnado matriculado sepa qué debe entregar y para cuándo.
+
+```gherkin
+Característica: Publicación de tareas
+  Escenario: Publicar una tarea con fecha límite válida
+    Dado que estoy autenticado como DOCENTE del módulo "Programación web en el entorno cliente"
+    Y he seleccionado la unidad formativa "UF1841 - Elaboración de documentos web"
+    Cuando creo una tarea con título "Maquetar formulario de contacto" y fecha límite "2026-10-15"
+    Entonces la tarea se guarda con estado "PUBLICADA"
+    Y el alumnado matriculado en el módulo puede verla en su panel
+
+  Escenario: Rechazar una fecha límite en el pasado
+    Dado que estoy autenticado como DOCENTE
+    Cuando intento crear una tarea con fecha límite anterior a hoy
+    Entonces el sistema muestra el error "La fecha límite debe ser posterior a la fecha actual"
+    Y la tarea no se guarda
+```
+
+*(RF-001, RF-002)*
+
+### HU-02 — Entregar una tarea
+
+**Como** ALUMNO, **quiero** entregar un fichero y/o comentario para una tarea asignada **para**
+que sea evaluada por el docente.
+
+```gherkin
+Característica: Entrega de tareas
+  Escenario: Entrega dentro de plazo
+    Dado que estoy autenticado como ALUMNO matriculado en el módulo de la tarea
+    Y la tarea "Maquetar formulario de contacto" tiene fecha límite "2026-10-15"
+    Cuando adjunto un fichero y confirmo la entrega el "2026-10-10"
+    Entonces la entrega se guarda con estado "ENTREGADA"
+    Y se registra la fecha y hora exacta de la entrega
+
+  Escenario: Entrega fuera de plazo
+    Cuando confirmo la entrega el "2026-10-16"
+    Entonces la entrega se guarda con estado "ENTREGADA_FUERA_DE_PLAZO"
+    Y el docente ve claramente marcada la entrega como fuera de plazo
+```
+
+*(RF-003, RF-004)*
+
+### HU-03 — Calificar una entrega
+
+**Como** DOCENTE, **quiero** calificar una entrega con nota y observaciones **para** dar
+feedback al alumnado y dejar constancia de la evaluación.
+
+```gherkin
+Característica: Calificación de entregas
+  Escenario: Calificar una entrega dentro del rango válido
+    Dado que estoy autenticado como DOCENTE del módulo
+    Y existe una entrega en estado "ENTREGADA" para la tarea "Maquetar formulario de contacto"
+    Cuando registro una calificación de "8.5" con observación "Buen uso de formularios accesibles"
+    Entonces la entrega pasa a estado "CALIFICADA"
+    Y el alumno autor puede consultar la calificación y la observación
+
+  Escenario: Rechazar una calificación fuera de rango
+    Cuando intento registrar una calificación de "12"
+    Entonces el sistema muestra el error "La calificación debe estar entre 0 y 10"
+    Y la entrega permanece en estado "ENTREGADA"
+```
+
+*(RF-005, RF-006)*
+
+### HU-04 — Consultar calificaciones propias
+
+**Como** ALUMNO, **quiero** consultar mis calificaciones de todos mis módulos **para** conocer
+mi progreso académico.
+
+```gherkin
+Característica: Consulta de calificaciones
+  Escenario: Ver mis calificaciones agrupadas por módulo
+    Dado que estoy autenticado como ALUMNO
+    Cuando accedo a "Mis calificaciones"
+    Entonces veo únicamente las entregas y calificaciones de las que soy autor
+    Y están agrupadas por módulo y unidad formativa
+```
+
+*(RF-007)*
+
+### HU-05 — Gestionar usuarios y módulos
+
+**Como** ADMINISTRADOR, **quiero** dar de alta usuarios, módulos y unidades formativas, y
+matricular alumnado **para** mantener el sistema actualizado con la oferta formativa real.
+
+```gherkin
+Característica: Administración del ciclo
+  Escenario: Alta de un nuevo módulo con sus unidades formativas
+    Dado que estoy autenticado como ADMINISTRADOR
+    Cuando creo el módulo "Programación web en el entorno servidor" con código "MF0492_3" y 240 horas
+    Y añado la unidad formativa "UF1844" con 90 horas
+    Entonces el módulo queda visible para su asignación a un docente
+
+  Escenario: Impedir el alta de un módulo con código duplicado
+    Cuando intento crear un módulo con código "MF0492_3" ya existente
+    Entonces el sistema muestra el error "Ya existe un módulo con ese código"
+```
+
+*(RF-008, RF-009, RF-010)*
+
+### HU-06 — Consultar información pública del ciclo
+
+**Como** VISITANTE, **quiero** consultar los módulos y el horario del ciclo sin necesidad de
+registrarme **para** decidir si me interesa matricularme.
+
+```gherkin
+Característica: Panel público
+  Escenario: Consultar módulos sin autenticación
+    Dado que no estoy autenticado
+    Cuando accedo a la página pública del ciclo
+    Entonces veo el listado de módulos con su descripción y horas
+    Y no veo ningún dato personal de alumnado ni calificaciones
+```
+
+*(RF-011)*
+
+### HU-07 — Publicar recursos didácticos
+
+**Como** DOCENTE, **quiero** publicar documentos, vídeos o enlaces en una unidad formativa
+**para** que el alumnado disponga de material de apoyo.
+
+```gherkin
+Característica: Recursos didácticos
+  Escenario: Publicar un recurso de tipo enlace
+    Dado que estoy autenticado como DOCENTE de la unidad formativa
+    Cuando publico un recurso de tipo "ENLACE" con URL válida y título "MDN - Fetch API"
+    Entonces el recurso aparece listado para el alumnado matriculado en el módulo
+```
+
+*(RF-012)*
+
+### HU-08 — Publicar anuncios
+
+**Como** DOCENTE, **quiero** publicar un anuncio a nivel de módulo **para** comunicar
+información relevante a todo el alumnado matriculado.
+
+```gherkin
+Característica: Anuncios
+  Escenario: Publicar un anuncio destacado
+    Dado que estoy autenticado como DOCENTE del módulo
+    Cuando publico un anuncio con título "Cambio de aula" marcado como destacado
+    Entonces el anuncio aparece en primer lugar del panel del alumnado matriculado
+```
+
+*(RF-013)*
+
+### HU-09 — Accesibilidad de los formularios
+
+**Como** ALUMNO que utiliza lector de pantalla, **quiero** que los formularios de entrega y
+consulta cumplan WCAG 2.2 AA **para** poder usar la plataforma con las mismas garantías que el
+resto del alumnado.
+
+```gherkin
+Característica: Accesibilidad
+  Escenario: Navegación completa por teclado en el formulario de entrega
+    Dado que navego únicamente con teclado
+    Cuando recorro el formulario de entrega de tareas con la tecla Tab
+    Entonces el foco es visible en cada campo y el orden sigue la estructura visual
+    Y cada campo tiene una etiqueta asociada programáticamente
+```
+
+*(RF-014 — Requisito no funcional convertido en criterio verificable, ver §7)*
+
+## 6. Requisitos funcionales
+
+| ID | Requisito | UC asociada |
+|---|---|---|
+| RF-001 | El sistema permite a un DOCENTE crear una tarea asociada a una unidad formativa de un módulo que imparte, con título, descripción, fecha de publicación, fecha límite y adjuntos opcionales. | UC0492_3, UC0491_3 |
+| RF-002 | El sistema valida que la fecha límite de una tarea sea posterior a la fecha de publicación, tanto en cliente como en servidor. | UC0491_3, UC0492_3 |
+| RF-003 | El sistema permite a un ALUMNO matriculado adjuntar un fichero y/o comentario como entrega de una tarea publicada en un módulo en el que está matriculado. | UC0491_3, UC0492_3 |
+| RF-004 | El sistema marca automáticamente una entrega como fuera de plazo si su fecha/hora es posterior a la fecha límite de la tarea. | UC0492_3 |
+| RF-005 | El sistema permite a un DOCENTE registrar una calificación numérica (0–10, hasta un decimal) y observaciones textuales para una entrega de su módulo. | UC0492_3, UC0493_3 |
+| RF-006 | El sistema rechaza calificaciones fuera del rango 0–10 con un mensaje de error explícito, tanto en cliente como en servidor. | UC0491_3, UC0492_3 |
+| RF-007 | El sistema permite a un ALUMNO consultar únicamente sus propias entregas y calificaciones, agrupadas por módulo y unidad formativa. | UC0492_3, UC0493_3 |
+| RF-008 | El sistema permite a un ADMINISTRADOR crear, editar y dar de baja (lógica) usuarios, asignándoles un rol (ADMINISTRADOR, DOCENTE, ALUMNO). | UC0492_3 |
+| RF-009 | El sistema permite a un ADMINISTRADOR crear módulos y sus unidades formativas, con código único, nombre y horas. | UC0492_3 |
+| RF-010 | El sistema permite a un ADMINISTRADOR matricular a un ALUMNO en uno o más módulos y consultar/revocar matriculaciones existentes. | UC0492_3 |
+| RF-011 | El sistema expone una vista pública (sin autenticación) con el listado de módulos, su descripción y horas totales, sin datos personales de alumnado. | UC0491_3, UC0493_3 |
+| RF-012 | El sistema permite a un DOCENTE publicar recursos didácticos (DOCUMENTO, VIDEO o ENLACE) asociados a una unidad formativa de su módulo. | UC0491_3, UC0492_3 |
+| RF-013 | El sistema permite a un DOCENTE publicar anuncios a nivel de módulo, con opción de marcarlos como destacados. | UC0492_3 |
+| RF-014 | El sistema autentica usuarios mediante email y contraseña, emitiendo un token JWT con expiración, y autoriza cada operación según el rol del usuario. | UC0492_3, UC0493_3 |
+| RF-015 | El sistema registra en cada entidad principal la fecha de creación y de última modificación (auditoría mínima). | UC0492_3, UC0493_3 |
+
+## 7. Requisitos no funcionales
+
+| ID | Categoría | Requisito |
+|---|---|---|
+| RNF-001 | Rendimiento | p95 del tiempo de respuesta de cualquier endpoint de la API < 2 s bajo carga nominal. |
+| RNF-002 | Seguridad — sesión | Contraseñas con BCrypt (coste ≥ 10). El **refresh token** se entrega en cookie `httpOnly` + `Secure` + `SameSite=Strict` (nunca accesible a JavaScript); el **access token** JWT vive solo en memoria del cliente (variable de React, nunca `localStorage`/`sessionStorage`), expiración ≤ 15 min. Cada JWT lleva un claim `jti` único; al cerrar sesión o revocar, su `jti` se inserta en la tabla `tokens_revocados` (PostgreSQL, con `fecha_expiracion` para limpieza periódica — sin Redis, según ADR-0002) y se rechaza en cualquier petición posterior (protección de *replay*). |
+| RNF-003 | Seguridad — entrada/salida | Protección activa frente a XSS (React escapa por defecto; cualquier renderizado de HTML en cliente, por ejemplo contenido enriquecido de un anuncio, exige sanitizar con DOMPurify antes de usar `dangerouslySetInnerHTML` — prohibido sin ese paso), CSRF (esquema de doble token: cookie no-`httpOnly` con un valor aleatorio que el cliente debe repetir en una cabecera `X-CSRF-Token` en toda petición mutante — `POST`/`PUT`/`DELETE`) e inyección SQL (consultas parametrizadas vía JPA, sin excepciones). |
+| RNF-011 | Seguridad — fuerza bruta | `POST /auth/login` (y cualquier otro endpoint de autenticación) limitado por Bucket4j con clave compuesta IP+usuario; a partir de 5 intentos fallidos en 15 min, respuesta `429` con `Retry-After`. Sin infraestructura adicional (sin Redis), consistente con RNF-008. |
+| RNF-012 | Seguridad — autorización | Cada endpoint que expone datos de un usuario concreto (calificaciones, entregas, módulos propios) verifica no solo el rol (`@PreAuthorize`) sino la **propiedad del recurso** en la capa `service`; cada uno de estos endpoints tiene al menos una prueba de integración que verifica `403` para un usuario del rol correcto pero sin esa propiedad. |
+| RNF-004 | Accesibilidad | Cumplimiento WCAG 2.2 nivel AA en todas las vistas del cliente; puntuación Lighthouse Accessibility ≥ 90 — **exigible por igual con React que con HTML plano**: la elección de framework en §11 no reduce este umbral. |
+| RNF-005 | Usabilidad | Diseño responsive mobile-first; navegación completa sin ratón (accesible por teclado). |
+| RNF-006 | Compatibilidad | Funcionamiento correcto en las 2 últimas versiones de Chrome, Firefox, Edge y Safari. |
+| RNF-007 | Mantenibilidad | Cobertura de pruebas ≥ 70% en la capa `service` del backend; código modular según Constitución §Restricciones técnicas. |
+| RNF-008 | Disponibilidad | El entorno de producción soporta reinicio sin pérdida de datos (persistencia en PostgreSQL, sin estado en memoria de aplicación, sin dependencia de infraestructura de caché externa). |
+| RNF-009 | Documentación | API documentada con OpenAPI accesible en `/swagger-ui.html` en entornos de desarrollo y preproducción. |
+| RNF-010 | Internacionalización | Textos de interfaz y mensajes de validación en español; fechas en formato `dd/mm/aaaa`. |
+| RNF-013 | Protección de datos (RGPD/LOPDGDD) | Cifrado en reposo a **nivel de infraestructura** (disco/volumen cifrado del proveedor + TLS en tránsito), no a nivel de columna — ver ADR-0002 y CA-05. La baja lógica de `Usuario` (RF-008) se acompaña de un mecanismo de **anonimización real** invocable manualmente: sustituye `nombre`, `apellidos` y `email` por valores no identificables conservando `id` y `rol` por integridad referencial de calificaciones/entregas ya emitidas. |
+
+> **Nota (2026-09-22):** RNF-002, RNF-003, RNF-011, RNF-012 y RNF-013 resuelven las consideraciones
+> abiertas CA-03, CA-04 y (parcialmente) CA-05 de §13 — ver esa sección para el detalle de qué
+> queda todavía sin decidir de CA-05, y la nueva CA-10 sobre aplicabilidad del ENS.
+
+## 8. Modelo de datos conceptual
+
+### 8.1 Entidades y atributos principales
+
+| Entidad | Atributos clave | Relaciones |
+|---|---|---|
+| **Usuario** | id, nombre, apellidos, email (único), passwordHash, rol {ADMINISTRADOR, DOCENTE, ALUMNO}, activo, fechaAlta | 1–N con Modulo (como docente responsable); N–M con Modulo vía Matricula (como alumno) |
+| **Modulo** | id, codigo (único, p. ej. `MF0491_3`), nombre, horas, docenteResponsableId | 1–N con UnidadFormativa; 1–N con Anuncio; N–M con Usuario vía Matricula |
+| **UnidadFormativa** | id, moduloId, codigo (p. ej. `UF1841`), nombre, horas, orden | 1–N con Tarea; 1–N con Recurso |
+| **Matricula** | id, alumnoId, moduloId, fechaMatricula, estado {ACTIVA, BAJA} | N–M entre Usuario y Modulo |
+| **Tarea** | id, unidadFormativaId, titulo, descripcion, fechaPublicacion, fechaLimite, estado {BORRADOR, PUBLICADA} | 1–N con Entrega |
+| **Entrega** | id, tareaId, alumnoId, fechaEntrega, ficheroUrl, comentario, estado {PENDIENTE, ENTREGADA, ENTREGADA_FUERA_DE_PLAZO, CALIFICADA} | 1–1 con Evaluacion |
+| **Evaluacion** | id, entregaId, calificacion (0–10), observaciones, evaluadorId, fechaEvaluacion | pertenece a Entrega |
+| **Recurso** | id, unidadFormativaId, titulo, tipo {DOCUMENTO, VIDEO, ENLACE}, url, descripcion, fechaPublicacion | pertenece a UnidadFormativa |
+| **Anuncio** | id, moduloId, autorId, titulo, contenido, fechaPublicacion, destacado | pertenece a Modulo |
+
+### 8.2 Diagrama entidad-relación
+
+```mermaid
+erDiagram
+    USUARIO ||--o{ MODULO : "es docente responsable de"
+    USUARIO ||--o{ MATRICULA : "se matricula mediante"
+    MODULO ||--o{ MATRICULA : "recibe"
+    MODULO ||--o{ UNIDAD_FORMATIVA : contiene
+    MODULO ||--o{ ANUNCIO : publica
+    UNIDAD_FORMATIVA ||--o{ TAREA : contiene
+    UNIDAD_FORMATIVA ||--o{ RECURSO : contiene
+    TAREA ||--o{ ENTREGA : recibe
+    USUARIO ||--o{ ENTREGA : "entrega (alumno)"
+    ENTREGA ||--o| EVALUACION : tiene
+    USUARIO ||--o{ EVALUACION : "evalúa (docente)"
+    USUARIO ||--o{ ANUNCIO : "publica (docente)"
+    USUARIO ||--o{ RECURSO : "publica (docente)"
+
+    USUARIO {
+        uuid id PK
+        string nombre
+        string apellidos
+        string email UK
+        string passwordHash
+        enum rol
+        boolean activo
+    }
+    MODULO {
+        uuid id PK
+        string codigo UK
+        string nombre
+        int horas
+        uuid docenteResponsableId FK
+    }
+    UNIDAD_FORMATIVA {
+        uuid id PK
+        uuid moduloId FK
+        string codigo
+        string nombre
+        int horas
+        int orden
+    }
+    MATRICULA {
+        uuid id PK
+        uuid alumnoId FK
+        uuid moduloId FK
+        date fechaMatricula
+        enum estado
+    }
+    TAREA {
+        uuid id PK
+        uuid unidadFormativaId FK
+        string titulo
+        text descripcion
+        datetime fechaPublicacion
+        datetime fechaLimite
+        enum estado
+    }
+    ENTREGA {
+        uuid id PK
+        uuid tareaId FK
+        uuid alumnoId FK
+        datetime fechaEntrega
+        string ficheroUrl
+        text comentario
+        enum estado
+    }
+    EVALUACION {
+        uuid id PK
+        uuid entregaId FK
+        decimal calificacion
+        text observaciones
+        uuid evaluadorId FK
+        datetime fechaEvaluacion
+    }
+    RECURSO {
+        uuid id PK
+        uuid unidadFormativaId FK
+        string titulo
+        enum tipo
+        string url
+        text descripcion
+    }
+    ANUNCIO {
+        uuid id PK
+        uuid moduloId FK
+        uuid autorId FK
+        string titulo
+        text contenido
+        boolean destacado
+    }
+```
+
+## 9. Casos de uso principales
+
+```mermaid
+flowchart LR
+    Visitante((Visitante))
+    Alumno((Alumno))
+    Docente((Docente))
+    Admin((Administrador))
+
+    Visitante --> UC0[Consultar información pública del ciclo]
+
+    Alumno --> UC1[Consultar tareas de sus módulos]
+    Alumno --> UC2[Entregar tarea]
+    Alumno --> UC3[Consultar sus calificaciones]
+    Alumno --> UC4[Consultar recursos y anuncios]
+
+    Docente --> UC5[Publicar tarea]
+    Docente --> UC6[Calificar entrega]
+    Docente --> UC7[Publicar recurso didáctico]
+    Docente --> UC8[Publicar anuncio]
+
+    Admin --> UC9[Gestionar usuarios]
+    Admin --> UC10[Gestionar módulos y unidades formativas]
+    Admin --> UC11[Gestionar matriculaciones]
+    Admin --> UC5
+    Admin --> UC6
+```
+
+## 10. Trazabilidad requisitos ↔ certificado
+
+| Requisito | Unidad de competencia | Módulo formativo | Unidad formativa |
+|---|---|---|---|
+| RF-001, RF-002, RF-011, RF-012 (parte cliente) | UC0491_3 — Desarrollar elementos software en el entorno cliente | MF0491_3 | UF1841 (marcado/formularios), UF1842 (componentes/AJAX), UF1843 (accesibilidad) |
+| RF-001, RF-003, RF-004, RF-005, RF-006, RF-007, RF-008, RF-009, RF-010, RF-012, RF-013, RF-014, RF-015 (parte servidor) | UC0492_3 — Desarrollar elementos software en el entorno servidor | MF0492_3 | UF1844 (POO/MVC), UF1845 (acceso a datos/SQL), UF1846 (servicios REST) |
+| RF-011, RF-014, RF-015 (despliegue, doc., pruebas) | UC0493_3 — Implementar, verificar y documentar aplicaciones web | MF0493_3 | — (módulo único) |
+| RNF-004, RNF-005 | UC0491_3 | MF0491_3 | UF1843 |
+| RNF-002, RNF-003 | UC0492_3, UC0493_3 | MF0492_3, MF0493_3 | UF1844, UF1846 |
+| RNF-007, RNF-009 | UC0493_3 | MF0493_3 | — |
+
+**Importante — lectura de esta tabla tras la decisión de §11:** la columna "UC asociada" identifica
+el *área de competencia* que cada requisito ejercita (qué se construye: interfaz cliente, lógica de
+servidor, despliegue), no una promesa de que la *técnica exacta* usada coincida con la evaluada
+literalmente en el examen oficial del certificado. Ver §11 para el detalle de esa distinción en el
+entorno cliente.
+
+## 11. Nota sobre la implementación del entorno cliente (React + Tailwind híbrido)
+
+**Decisión (2026-09-22, ver `docs/adr/0001-frontend-react-tailwind.md`):** el entorno cliente
+(`specs/001-entorno-cliente/`) se construye con **React** en toda la aplicación, y con **Tailwind
+CSS** limitado a las vistas de administración, mientras que las vistas de docente y alumno usan
+**CSS3 escrito a mano** (CSS Modules, sin utilidades de Tailwind).
+
+Esto es una **desviación consciente y documentada** de lo que UC0491_3 evalúa literalmente: la
+unidad de competencia exige "crear componentes software mediante herramientas y lenguajes de
+guión" (UF1842) manipulando el DOM, gestionando eventos y realizando peticiones asíncronas
+directamente, sin la capa de abstracción que aporta un framework como React (Virtual DOM, JSX,
+gestión de estado declarativa). Con React, buena parte de esas técnicas quedan encapsuladas por el
+framework en lugar de codificadas explícitamente por quien desarrolla.
+
+**Motivo de la decisión:** prioriza el valor de portfolio profesional (React es el framework de
+frontend más demandado en el mercado de trabajo remoto al que se orienta este proyecto, ver OB-5)
+sobre la fidelidad literal a la técnica de evaluación del certificado.
+
+**Consecuencia práctica:** si en algún momento se necesita una evidencia estricta de las técnicas
+de UF1842 (DOM/eventos/AJAX sin framework) para fines de evaluación formal del certificado, esa
+evidencia **no queda cubierta por este proyecto tal como está planteado** y requeriría un ejercicio
+o rama aparte específicamente en JavaScript vanilla. Este documento dejará constancia si esa
+necesidad surge; no se ha creado ninguna tarea para ello todavía porque no se ha solicitado.
+
+La parte de accesibilidad (UF1843, RNF-004) **no se ve afectada** por esta decisión: sigue siendo
+exigible con la misma severidad se use React o HTML plano.
+
+## 12. Contrato de API (desarrollo contract-first)
+
+Este contrato es compartido por `001-entorno-cliente` (contra un backend simulado que lo implementa
+fielmente) y `002-entorno-servidor` (que lo implementa de verdad). `003-implantacion` verifica que
+ambos coinciden antes de integrar. Ningún módulo puede cambiar este contrato unilateralmente: un
+cambio aquí es un cambio de spec, no de plan.
+
+Base path: `/api/v1`. Formato: JSON. Autenticación: cabecera `Authorization: Bearer <jwt>` salvo
+donde se indique público.
+
+| Método | Endpoint | Rol requerido | Descripción | Código éxito |
+|---|---|---|---|---|
+| POST | `/auth/login` | Público | Autentica y devuelve JWT + refresh token | 200 |
+| POST | `/auth/refresh` | Público (refresh token) | Renueva el JWT | 200 |
+| GET | `/modulos/publicos` | Público | Listado de módulos para el panel de visitante | 200 |
+| GET | `/usuarios` | ADMINISTRADOR | Lista usuarios (paginada) | 200 |
+| POST | `/usuarios` | ADMINISTRADOR | Crea un usuario | 201 |
+| GET | `/usuarios/{id}` | ADMINISTRADOR, propio usuario | Detalle de usuario | 200 |
+| PUT | `/usuarios/{id}` | ADMINISTRADOR, propio usuario | Edita usuario | 200 |
+| DELETE | `/usuarios/{id}` | ADMINISTRADOR | Baja lógica de usuario | 204 |
+| GET | `/modulos` | Autenticado | Lista módulos (filtrable por docente) | 200 |
+| POST | `/modulos` | ADMINISTRADOR | Crea módulo | 201 |
+| PUT | `/modulos/{id}` | ADMINISTRADOR | Edita módulo | 200 |
+| POST | `/modulos/{id}/unidades-formativas` | ADMINISTRADOR | Crea unidad formativa en el módulo | 201 |
+| POST | `/matriculas` | ADMINISTRADOR | Matricula un alumno en un módulo | 201 |
+| DELETE | `/matriculas/{id}` | ADMINISTRADOR | Da de baja una matrícula | 204 |
+| GET | `/unidades-formativas/{id}/tareas` | Autenticado (matriculado o docente) | Lista tareas de la unidad formativa | 200 |
+| POST | `/unidades-formativas/{id}/tareas` | DOCENTE (del módulo) | Crea una tarea | 201 |
+| PUT | `/tareas/{id}` | DOCENTE (autor) | Edita una tarea | 200 |
+| POST | `/tareas/{id}/entregas` | ALUMNO (matriculado) | Registra una entrega | 201 |
+| GET | `/tareas/{id}/entregas` | DOCENTE (del módulo) | Lista entregas de una tarea | 200 |
+| PUT | `/entregas/{id}/evaluacion` | DOCENTE (del módulo) | Registra/edita la calificación de una entrega | 200 |
+| GET | `/alumnos/{id}/calificaciones` | ALUMNO (propio), DOCENTE | Lista calificaciones de un alumno | 200 |
+| GET | `/unidades-formativas/{id}/recursos` | Autenticado (matriculado o docente) | Lista recursos de la unidad formativa | 200 |
+| POST | `/unidades-formativas/{id}/recursos` | DOCENTE (del módulo) | Publica un recurso | 201 |
+| GET | `/modulos/{id}/anuncios` | Autenticado (matriculado o docente) | Lista anuncios del módulo | 200 |
+| POST | `/modulos/{id}/anuncios` | DOCENTE (del módulo) | Publica un anuncio | 201 |
+
+**Códigos de error estandarizados:** `400` (validación), `401` (no autenticado), `403` (sin
+permiso sobre el recurso), `404` (no encontrado), `409` (conflicto, p. ej. código duplicado),
+`422` (regla de negocio violada, p. ej. calificación fuera de rango), `500` (error no controlado,
+respuesta genérica sin detalles internos).
+
+Todas las respuestas de error siguen el mismo contrato:
+
+```json
+{
+  "timestamp": "2026-09-22T10:15:00Z",
+  "status": 422,
+  "error": "UNPROCESSABLE_ENTITY",
+  "message": "La calificación debe estar entre 0 y 10",
+  "path": "/api/v1/entregas/{id}/evaluacion"
+}
+```
+
+## 13. Consideraciones abiertas (pendientes de decisión, no implementadas todavía)
+
+Por Principio 1 de la constitución (nada se implementa sin spec aprobada), lo siguiente **no se
+construye** hasta que se decida explícitamente y se incorpore como RF/RNF nuevo. Se deja aquí
+constancia para que no se pierda ni se invente sobre la marcha. Las filas tachadas ya se
+resolvieron y su decisión vive ahora en un RNF concreto (§7) — se mantienen aquí solo como
+registro histórico de la conversación que las cerró.
+
+| # | Consideración | Estado | Por qué importaba / decisión tomada |
+|---|---|---|---|
+| CA-01 | Ubicación de almacenamiento de ficheros adjuntos (Entrega/Recurso): disco del contenedor, objeto (MinIO/S3) u otro | **Abierta** | Sin esto, `ficheroUrl` no es implementable de forma realista ni reproducible entre entornos |
+| CA-02 | Flujo de recuperación de contraseña ("olvidé mi contraseña") | **Abierta** | RF-014 solo cubre login/refresh; sin esto no hay forma de recuperar acceso |
+| ~~CA-03~~ | ~~Límite de intentos (rate limiting) en `/auth/login`~~ | **Resuelta (2026-09-22)** | Bucket4j, clave IP+usuario, `429` a partir de 5 intentos/15 min — ver RNF-011 |
+| ~~CA-04~~ | ~~Dónde guarda el cliente el JWT: `localStorage` vs. cookie `httpOnly`~~ | **Resuelta (2026-09-22)** | Refresh token en cookie `httpOnly`+`Secure`+`SameSite=Strict`; access token en memoria; CSRF por doble token — ver RNF-002/RNF-003 y ADR-0002 |
+| CA-05 | Base legal RGPD/LOPDGDD y política de retención para datos de alumnado (posible minoría de edad) | **Parcialmente resuelta** | Cifrado en reposo: a nivel de infraestructura, no de columna (ver RNF-013, ADR-0002). Mecanismo técnico de anonimización real ya diseñado (RNF-013). **Sigue sin decidir:** la base legal concreta (consentimiento vs. interés legítimo del centro), el plazo de retención, y si hay alumnado menor de edad en el ciclo real — esto es una decisión legal/administrativa, no técnica, y no la puedo tomar por ti |
+| CA-06 | Auditoría de quién modifica una calificación, más allá de `fechaModificacion` | **Abierta** | Relevante si más de un docente puede calificar en el mismo módulo |
+| CA-07 | Licencia del repositorio | **Abierta** | Sin decidir; no bloquea el desarrollo pero sí la posible reutilización externa |
+| CA-08 | Infraestructura de despliegue en `prod`: VPS existente (CloudPanel) vs. nuevo | **Abierta** | Afecta directamente a `003-implantacion/plan.md` |
+| CA-09 | Tamaño real esperado del ciclo (nº de alumnado) para calibrar las pruebas de carga | **Abierta** | El umbral actual de RNF-001 (50 VUs) es un valor por defecto, no confirmado |
+| CA-10 | Aplicabilidad del Esquema Nacional de Seguridad (ENS) | **Abierta — "aún no lo sé" (2026-09-22)** | Solo aplica formalmente si GestorFP se despliega para una Administración Pública (un centro FP público). Si en algún momento se confirma que sí, añade requisitos de análisis de riesgos y controles documentados que hoy no están en `003-implantacion/plan.md` — no se asume ni se descarta mientras no se confirme el destino real de despliegue |
+
+---
+
+*Documentos derivados: `specs/001-entorno-cliente/`, `specs/002-entorno-servidor/`,
+`specs/003-implantacion/` (cada uno con su `plan.md` y `tasks.md`).*

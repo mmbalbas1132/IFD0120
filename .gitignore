@@ -1,0 +1,28 @@
+# Agentes de código (puede contener tokens/credenciales locales)
+.claude/settings.local.json
+.claude/.credentials.json
+
+# Backend (Java/Maven) — aún no scaffolded, preparado para cuando exista
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+*.class
+
+# Frontend (Node/Vite) — aún no scaffolded, preparado para cuando exista
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Entornos y secretos
+.env
+.env.*
+!.env.example
+
+# IDE / SO
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
