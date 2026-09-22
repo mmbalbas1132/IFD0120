@@ -101,7 +101,9 @@ flowchart LR
 
 - Cliente y servidor integrados y verificados manualmente (Paso 0) antes de automatizar.
 - Suite E2E completa en verde en CI, incluyendo accesibilidad.
-- `docker-compose.prod.yml` desplegado con éxito en un entorno de prueba, con TLS válido.
+- `docker-compose.prod.yml` desplegado con éxito en el entorno de preproducción (`pre`), con
+  certificado TLS válido (emitido por una CA reconocida o Let's Encrypt, sin warnings de
+  navegador).
 - Runbook de despliegue y rollback documentado y probado al menos una vez.
 - **CA-01 resuelta y la parte legal de CA-05 de `spec.md` §13 resuelta** antes de cualquier
   despliegue con datos reales de alumnado — si no lo están, este módulo se cierra en `pre`, no en

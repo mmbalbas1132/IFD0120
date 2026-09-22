@@ -30,9 +30,16 @@ contra el contrato de §12 — nunca se parchea localmente en un solo lado (ver
 
 ### Functional Requirements
 
-Este módulo cubre: **RF-011, RF-014, RF-015** (despliegue, documentación, pruebas) y las no
-funcionales **RNF-001 (rendimiento), RNF-007, RNF-009** (ver `specs/000-funcional/spec.md` §6, §7 y
-la tabla de trazabilidad §10, fila UC0493_3).
+Este módulo cubre, con tareas propias en `tasks.md`: **RF-011** (panel público, TI.3/TI.15),
+**RF-014** (autenticación/autorización, TI.6/TI.7) y las no funcionales **RNF-001** (rendimiento,
+TI.5), **RNF-002/RNF-003/RNF-011** (seguridad — sesión, CSRF/XSS/SQLi, fuerza bruta; TI.6/TI.7),
+**RNF-004** (accesibilidad, TI.4), **RNF-008** (disponibilidad, TI.9/TI.12) y **RNF-009**
+(documentación, TI.8) (ver `specs/000-funcional/spec.md` §6, §7 y la tabla de trazabilidad §10,
+fila UC0493_3).
+
+**RF-015** y **RNF-007** ya quedaron implementados y probados en `002-entorno-servidor`
+(TS.23 y TS.24 respectivamente); este módulo no añade tareas propias para ellos — se
+re-verifican solo de forma indirecta en la revisión final de trazabilidad (TI.15).
 
 ### Key Entities
 
