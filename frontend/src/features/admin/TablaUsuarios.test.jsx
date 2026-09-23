@@ -18,7 +18,7 @@ describe('TablaUsuarios (HU-05)', () => {
     expect(region).toContainElement(screen.getByRole('table'))
   })
 
-  it('crea un usuario y lo añade a la tabla', async () => {
+  it('crea un usuario, lo añade a la tabla y muestra su contraseña temporal (RF-008, TC.24)', async () => {
     const usuario = userEvent.setup()
     await renderAutenticado(<TablaUsuarios />, { rol: 'ADMINISTRADOR' })
     await screen.findByText('admin@gestorfp.test')
@@ -29,6 +29,9 @@ describe('TablaUsuarios (HU-05)', () => {
     await usuario.click(screen.getByRole('button', { name: 'Crear usuario' }))
 
     expect(await screen.findByText('nuevo.alumno@gestorfp.test')).toBeInTheDocument()
+    const aviso = screen.getByRole('status')
+    expect(aviso).toHaveTextContent(/Contraseña temporal de Nuevo Alumno/)
+    expect(aviso).toHaveTextContent(/no se volverá a mostrar/)
   })
 
   it('restablece la contraseña y muestra la temporal una sola vez (RF-017, TC.23)', async () => {
