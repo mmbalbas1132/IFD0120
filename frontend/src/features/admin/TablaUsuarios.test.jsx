@@ -30,4 +30,20 @@ describe('TablaUsuarios (HU-05)', () => {
 
     expect(await screen.findByText('nuevo.alumno@gestorfp.test')).toBeInTheDocument()
   })
+
+  it('restablece la contraseña y muestra la temporal una sola vez (RF-017, TC.23)', async () => {
+    const usuario = userEvent.setup()
+    await renderAutenticado(<TablaUsuarios />, { rol: 'ADMINISTRADOR' })
+    await screen.findByText('alumno1@gestorfp.test')
+
+    await usuario.click(
+      screen.getByRole('button', { name: 'Restablecer contraseña de Iago Barreiro Cid' }),
+    )
+
+    const aviso = await screen.findByRole('status')
+    expect(aviso).toHaveTextContent(/Contraseña temporal de Iago Barreiro Cid/)
+    expect(aviso).toHaveTextContent(/no se volverá a mostrar/)
+    await usuario.click(screen.getByRole('button', { name: 'Ocultar' }))
+    expect(screen.queryByText(/Contraseña temporal de/)).not.toBeInTheDocument()
+  })
 })

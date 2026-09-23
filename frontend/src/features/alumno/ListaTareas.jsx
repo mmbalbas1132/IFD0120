@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useModulosConUnidades } from '../../hooks/useModulosConUnidades.js'
 import { listarTareasDeUnidad } from '../../api/tareasApi.js'
+import AdjuntoDescargable from '../../components/compartidos/AdjuntoDescargable.jsx'
 import estilos from './alumno.module.css'
 
 export default function ListaTareas() {
@@ -56,6 +57,7 @@ export default function ListaTareas() {
             <div>
               <h2>{tarea.titulo}</h2>
               <p>Fecha límite: {new Date(tarea.fechaLimite).toLocaleString('es-ES')}</p>
+              <AdjuntoDescargable adjunto={tarea.adjunto} />
             </div>
             <Link to={`/alumno/tareas/${tarea.id}/entregar`}>Entregar</Link>
           </li>

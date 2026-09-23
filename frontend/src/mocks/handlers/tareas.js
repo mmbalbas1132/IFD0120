@@ -9,8 +9,10 @@ import {
   noEncontrado,
   validacion,
   reglaNegocio,
+  leerCuerpo,
   obtenerSesion,
 } from './utils.js'
+import { errorDeFichero, guardarAdjunto } from './adjuntos.js'
 
 function unidadConModulo(unidadFormativaId) {
   const unidad = db.unidadesFormativas.find((uf) => uf.id === unidadFormativaId)
@@ -53,8 +55,9 @@ export const tareasHandlers = [
     }
     if (!csrfValido(request)) return sinPermiso(path)
 
-    const cuerpo = await request.json()
-    const { titulo, descripcion, fechaLimite } = cuerpo || {}
+    // RF-001 / §12: multipart con un `fichero` opcional (RNF-014).
+    const { campos, fichero } = await leerCuerpo(request)
+    const { titulo, descripcion, fechaLimite } = campos
     if (!titulo || !fechaLimite) {
       return validacion('titulo y fechaLimite son obligatorios', path)
     }
@@ -63,6 +66,10 @@ export const tareasHandlers = [
     // servidor — el mock replica la validación del servidor real para que TC.9 la detecte aquí.
     if (new Date(fechaLimite) <= fechaPublicacion) {
       return reglaNegocio('La fecha límite debe ser posterior a la fecha actual', path)
+    }
+    if (fichero) {
+      const error = errorDeFichero(fichero, path)
+      if (error) return error
     }
 
     const nueva = {
@@ -73,6 +80,7 @@ export const tareasHandlers = [
       fechaPublicacion: fechaPublicacion.toISOString(),
       fechaLimite,
       estado: 'PUBLICADA',
+      adjunto: fichero ? await guardarAdjunto(fichero, sesion.userId) : null,
     }
     db.tareas.push(nueva)
     return HttpResponse.json(nueva, { status: 201 })

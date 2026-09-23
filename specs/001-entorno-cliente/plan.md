@@ -195,6 +195,20 @@ frontend/
   `httpClient.js` y `AuthContext.jsx` lo implementan, así que el cambio a la API real en
   `003-implantacion` no toca `features/*`.
 
+### 6.1 Adjuntos y cambio obligatorio de contraseña en el mock
+
+- Los formularios con fichero envían `FormData`; `httpClient.js` no fija `Content-Type` en ese
+  caso para que el navegador añada el `boundary` del `multipart/form-data`.
+- La descarga (`GET /adjuntos/{id}`) no puede ser un `<a href>` plano porque necesita la cabecera
+  `Authorization`: `adjuntosApi.js` la pide con `httpClient`, recibe un `Blob` y lo abre con una URL
+  de objeto temporal, que se revoca al terminar.
+- El mock guarda los ficheros en memoria (se pierden al recargar, igual que el resto de datos del
+  mock) y valida tamaño y tipo declarado; la comprobación del tipo por contenido real es
+  responsabilidad del servidor de `002`.
+- `AuthContext.jsx` expone `debeCambiarPassword` (viene en el usuario de `/auth/login` y
+  `/auth/refresh`); mientras sea `true`, `RutaProtegida.jsx` redirige toda ruta protegida a
+  `/cambiar-password` (`auth/PaginaCambiarPassword.jsx`, CSS Module de `auth/`).
+
 ## 7. Accesibilidad (WCAG 2.2 AA) en este módulo
 
 - Todo formulario usa `<label htmlFor>` asociado, `aria-describedby` para mensajes de error, y

@@ -2,13 +2,19 @@
 // (ADR-0001, plan.md §5) — el resto del proyecto usa CSS Modules escritos a mano.
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { crearUsuario, darDeBajaUsuario, listarUsuarios } from '../../api/usuariosApi.js'
+import {
+  crearUsuario,
+  darDeBajaUsuario,
+  listarUsuarios,
+  restablecerPassword,
+} from '../../api/usuariosApi.js'
 
 const ROLES = ['ADMINISTRADOR', 'DOCENTE', 'ALUMNO']
 
 export default function TablaUsuarios() {
   const [usuarios, setUsuarios] = useState([])
   const [errorGeneral, setErrorGeneral] = useState(null)
+  const [passwordTemporal, setPasswordTemporal] = useState(null) // RF-017: se muestra una vez
   const {
     register,
     handleSubmit,
@@ -28,6 +34,16 @@ export default function TablaUsuarios() {
       await crearUsuario(datos)
       reset({ rol: 'ALUMNO' })
       recargar()
+    } catch (error) {
+      setErrorGeneral(error.message)
+    }
+  }
+
+  async function alRestablecer(usuario) {
+    setErrorGeneral(null)
+    try {
+      const respuesta = await restablecerPassword(usuario.id)
+      setPasswordTemporal({ usuario, valor: respuesta.passwordTemporal })
     } catch (error) {
       setErrorGeneral(error.message)
     }
@@ -120,6 +136,30 @@ export default function TablaUsuarios() {
       </form>
 
       {/* TC.16: región enfocable para poder desplazar la tabla con teclado en móvil. */}
+      {passwordTemporal && (
+        <div
+          role="status"
+          className="mb-4 rounded border border-amber-700 bg-amber-50 p-3 text-slate-900"
+        >
+          <p>
+            Contraseña temporal de {passwordTemporal.usuario.nombre}{' '}
+            {passwordTemporal.usuario.apellidos}:{' '}
+            <code className="rounded bg-white px-1 font-mono">{passwordTemporal.valor}</code>
+          </p>
+          <p className="mt-1 text-sm">
+            Comunícasela por un canal seguro: no se volverá a mostrar y tendrá que cambiarla al
+            entrar.
+          </p>
+          <button
+            type="button"
+            onClick={() => setPasswordTemporal(null)}
+            className="mt-2 rounded border border-slate-400 px-2 py-1 text-sm hover:bg-white"
+          >
+            Ocultar
+          </button>
+        </div>
+      )}
+
       <div
         className="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
         role="region"
@@ -157,13 +197,23 @@ export default function TablaUsuarios() {
                 <td className="p-2">{usuario.activo ? 'Activo' : 'Baja'}</td>
                 <td className="p-2">
                   {usuario.activo && (
-                    <button
-                      type="button"
-                      onClick={() => alDarDeBaja(usuario.id)}
-                      className="rounded border border-red-600 px-2 py-1 text-sm text-red-700 hover:bg-red-50"
-                    >
-                      Dar de baja
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => alRestablecer(usuario)}
+                        aria-label={`Restablecer contraseña de ${usuario.nombre} ${usuario.apellidos}`}
+                        className="rounded border border-slate-500 px-2 py-1 text-sm text-slate-800 hover:bg-slate-100"
+                      >
+                        Restablecer contraseña
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => alDarDeBaja(usuario.id)}
+                        className="rounded border border-red-600 px-2 py-1 text-sm text-red-700 hover:bg-red-50"
+                      >
+                        Dar de baja
+                      </button>
+                    </div>
                   )}
                 </td>
               </tr>

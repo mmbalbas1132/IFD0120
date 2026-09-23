@@ -15,6 +15,8 @@ const filasDelContrato = [
   ['get', '/usuarios/u-alumno-1'],
   ['put', '/usuarios/u-alumno-1'],
   ['delete', '/usuarios/u-alumno-1'],
+  ['post', '/usuarios/u-alumno-1/restablecer-password'],
+  ['put', '/usuarios/u-alumno-1/password'],
   ['get', '/modulos'],
   ['post', '/modulos'],
   ['put', '/modulos/m-1'],
@@ -27,11 +29,13 @@ const filasDelContrato = [
   ['post', '/tareas/t-1/entregas'],
   ['get', '/tareas/t-1/entregas'],
   ['put', '/entregas/e-1/evaluacion'],
+  ['get', '/entregas/e-1/evaluacion/historial'],
   ['get', '/alumnos/u-alumno-1/calificaciones'],
   ['get', '/unidades-formativas/uf-1/recursos'],
   ['post', '/unidades-formativas/uf-1/recursos'],
   ['get', '/modulos/m-1/anuncios'],
   ['post', '/modulos/m-1/anuncios'],
+  ['get', '/adjuntos/adj-1'],
 ]
 
 describe('contrato §12 — cobertura de handlers MSW', () => {

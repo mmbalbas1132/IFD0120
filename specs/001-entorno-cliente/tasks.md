@@ -22,12 +22,16 @@
 | [X] TC.13 [P] | `features/admin/{TablaUsuarios,FormularioModulo,GestionMatriculas}.jsx` (HU-05) — usa Tailwind | RF-008/009/010: formularios accesibles con clases Tailwind; error de código duplicado mostrado desde el mock (409) | L | TC.2, TC.6, TC.7 | `src/features/admin/*.jsx` | HU-05, RF-008, RF-009, RF-010 |
 | [X] TC.14 [P] | `features/docente/{FormularioRecurso,FormularioAnuncio}.jsx` (HU-07, HU-08) | RF-012/013 con los 3 tipos de recurso y el flag de anuncio destacado | M | TC.6, TC.7 | `src/features/docente/{FormularioRecurso,FormularioAnuncio}.jsx` | HU-07, HU-08, RF-012, RF-013 |
 | [X] TC.15 | Pasada de accesibilidad WCAG 2.2 AA en las 9 páginas (labels, foco, `aria-live`, orden de tabulación) | `vitest-axe` sin violaciones críticas/serias en ninguna página; verificación manual de teclado | L | TC.8–TC.14 | todo `src/features/**` | RNF-004, HU-09 |
-| TC.16 | Responsive mobile-first en las 9 páginas (480/768/1024px) | Sin scroll horizontal ni solapes en los 3 breakpoints, verificado manualmente con capturas adjuntas al PR | M | TC.8–TC.14 | `src/styles/*.css`, módulos CSS de cada `features/*` | RNF-005, RNF-006 |
+| [X] TC.16 | Responsive mobile-first en las 9 páginas (480/768/1024px) | Sin scroll horizontal ni solapes en los 3 breakpoints, verificado manualmente con capturas adjuntas al PR | M | TC.8–TC.14 | `src/styles/*.css`, módulos CSS de cada `features/*` | RNF-005, RNF-006 |
 | [X] TC.17 | Pruebas Vitest + RTL de los componentes con lógica (formularios y listas con estado) | Cobertura de al menos 1 test de render + 1 de interacción por componente listado en TC.9–TC.14 | L | TC.9–TC.14 | `**/*.test.jsx` | — |
 | [X] TC.18 | README del módulo: cómo arrancar con MSW, cómo se desactivará en `003-implantacion` | `frontend/README.md` revisado, incluye variable `VITE_API_BASE_URL` | S | TC.4 | `frontend/README.md` | — |
 | [X] TC.19 | Excluir MSW y sus fixtures (credenciales simuladas) del build de producción: el mock solo arranca con `import.meta.env.MODE === 'development'` y sin `VITE_API_BASE_URL` | Prueba automatizada ejecuta `vite build` y falla si el bundle contiene código de `src/mocks/`, `mockServiceWorker` o la contraseña simulada | S | TC.4 | `src/main.jsx`, `tests/buildProduccion.test.js` | RNF-002, ADR-0002 |
+| [X] TC.20 | Adjuntos (RNF-014, §12): subida `multipart` con un `fichero` en entrega, tarea y recurso DOCUMENTO; descarga autenticada por `GET /adjuntos/{id}`; validación en cliente de 10 MB y tipos PDF/ZIP/PNG/JPG/DOCX/ODT con mensaje accesible; mock con `413`/`415` | Pruebas: fichero válido se envía y se puede descargar; fichero de más de 10 MB y tipo no permitido se rechazan en cliente sin enviar; el mock responde `413`/`415` si se salta la validación | M | TC.4, TC.6 | `src/api/{httpClient,adjuntosApi}.js`, `src/mocks/handlers/{entregas,tareas,recursos,adjuntos}.js`, formularios de entrega/tarea/recurso | RF-001, RF-003, RF-012, RNF-014 |
+| [X] TC.21 | Reemplazo de entrega (RF-003): el alumno ve si ya entregó; puede reemplazar mientras no esté calificada; ya calificada, el formulario lo impide y el mock responde `409` | Pruebas: reemplazo actualiza la entrega (`200`); entrega calificada muestra aviso y no permite reenviar | S | TC.10 | `src/features/alumno/FormularioEntrega.jsx`, `src/mocks/handlers/entregas.js` | RF-003, HU-02 |
+| [X] TC.22 | Historial de calificaciones (RF-016): el mock registra cada cambio; el docente consulta el historial de una entrega | Prueba: tras editar una calificación, el historial muestra la nota anterior y la nueva con autor y fecha | S | TC.11 | `src/api/evaluacionesApi.js`, `src/features/docente/ListaEntregas.jsx`, `src/mocks/handlers/entregas.js` | RF-016 |
+| [X] TC.23 | Contraseñas (RF-017, RF-018): página de cambio de contraseña para todos los roles con las reglas de RF-018; cambio obligatorio tras restablecimiento (redirección); botón de restablecer en `TablaUsuarios` que muestra la temporal una sola vez | Pruebas: reglas de RF-018 validadas en cliente; usuario con `debeCambiarPassword` solo accede a `/cambiar-password` y el mock responde `403 CAMBIO_PASSWORD_REQUERIDO` al resto; admin ve la temporal generada | M | TC.7, TC.13 | `src/auth/{AuthContext,RutaProtegida,PaginaCambiarPassword}.jsx`, `src/api/{authApi,usuariosApi}.js`, `src/features/admin/TablaUsuarios.jsx`, `src/mocks/handlers/{auth,usuarios}.js` | RF-017, RF-018 |
 
-> **TC.16 — estado (2026-09-23):** capturas generadas con Playwright + Chrome a viewport exacto
+> **TC.16 — hecha (2026-09-23):** capturas generadas con Playwright + Chrome a viewport exacto
 > de 480, 768 y 1024px (ancho × 900px, página completa) de las 12 rutas (panel público, login,
 > 3 de alumno, 4 de docente, 3 de admin): 36 capturas. En cada una se midió
 > `scrollWidth` frente al ancho del viewport y se revisaron visualmente en busca de solapes.
@@ -35,9 +39,11 @@
 > de 543px); corregido envolviendo la tabla en un contenedor `overflow-x: auto`, que además es
 > una región con nombre y enfocable para desplazarla con teclado (lo mismo en `TablaUsuarios`, que
 > ya desplazaba la tabla pero sin foco de teclado). Tras la corrección: 0 páginas con scroll
-> horizontal y sin solapes en los 3 breakpoints. **Pendiente para marcarla como hecha:** adjuntar
-> las 36 capturas al PR de `feature/001-entorno-cliente` → `develop` (el criterio Done exige
-> que vayan adjuntas al PR, que todavía no existe).
+> horizontal y sin solapes en los 3 breakpoints. **Repetido tras TC.20–TC.23** (cambian los
+> formularios de entrega, tarea, recurso y usuarios, y se añade `/cambiar-password`): 13 rutas × 3
+> anchos = 39 capturas, 0 con scroll horizontal y sin solapes. Adjuntas al PR #2 como 3 hojas
+> resumen (una por ancho) versionadas en `docs/capturas/tc16/` (commit `aab2dd9`) y enlazadas en la
+> descripción del PR; las 39 capturas individuales no se versionan.
 
 ## Cierre del módulo
 
@@ -46,7 +52,7 @@ Antes de abrir el PR de `feature/001-entorno-cliente` → `develop`:
 - [x] Las 9 HU de `spec.md` ejecutables de principio a fin contra el mock (verificación manual en
       navegador real: login de los 4 roles, HU-01 a HU-09, incluidos los casos de error RF-002,
       RF-006 y RF-009).
-- [x] `npm run build`, `npm run test` (54 pruebas), `npm run test:a11y` (12 páginas, 0
+- [x] `npm run build`, `npm run test` (96 pruebas), `npm run test:a11y` (13 páginas, 0
       violaciones críticas/serias) en verde.
 - [x] Ninguna clase Tailwind fuera de `features/admin/**` (verificado por
       `eslint-plugin-tailwindcss` — `npm run lint` en verde — y comprobado a propósito: una clase
@@ -58,5 +64,4 @@ Antes de abrir el PR de `feature/001-entorno-cliente` → `develop`:
       simulado fielmente según `docs/adr/0002-seguridad-sesion-y-datos.md` y verificado en
       navegador real: recarga de página recupera la sesión vía `/auth/refresh` sin pedir
       credenciales, logout revoca la sesión (TC.6, TC.7, TC.7b).
-- [ ] TC.16 pendiente de cierre formal (ver nota arriba): capturas hechas y verificadas; falta
-      adjuntarlas al PR.
+- [x] TC.16: capturas en los 3 breakpoints adjuntas al PR #2 (`docs/capturas/tc16/`).

@@ -43,6 +43,36 @@ export function conflicto(message, path) {
   return errorContrato(409, 'CONFLICT', message, path)
 }
 
+export function ficheroDemasiadoGrande(message, path) {
+  return errorContrato(413, 'PAYLOAD_TOO_LARGE', message, path)
+}
+
+export function tipoNoPermitido(message, path) {
+  return errorContrato(415, 'UNSUPPORTED_MEDIA_TYPE', message, path)
+}
+
+/**
+ * Lee el cuerpo como JSON o como `multipart/form-data` (§12, RNF-014). Devuelve los campos de
+ * texto y, aparte, el `fichero` (o `null` si no viene o está vacío).
+ */
+export async function leerCuerpo(request) {
+  const tipo = request.headers.get('content-type') ?? ''
+  if (!tipo.includes('multipart/form-data')) {
+    return { campos: (await request.json().catch(() => null)) ?? {}, fichero: null }
+  }
+  const formulario = await request.formData()
+  const campos = {}
+  let fichero = null
+  for (const [clave, valor] of formulario.entries()) {
+    if (clave === 'fichero') {
+      if (typeof valor !== 'string' && valor.size > 0) fichero = valor
+    } else {
+      campos[clave] = valor
+    }
+  }
+  return { campos, fichero }
+}
+
 /**
  * Decodifica y valida el access token de la cabecera Authorization.
  * Devuelve { userId, rol, jti } o null si no hay sesión válida.

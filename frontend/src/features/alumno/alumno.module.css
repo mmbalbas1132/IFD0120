@@ -97,3 +97,15 @@
     align-items: center;
   }
 }
+
+/* RF-003: aviso de entrega previa que se reemplazará. */
+.entregaPrevia {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-sm);
+  padding: var(--espacio-md);
+  margin-bottom: var(--espacio-md);
+  border: 1px solid var(--color-borde);
+  border-radius: 4px;
+  background-color: var(--color-superficie);
+}

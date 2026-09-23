@@ -7,6 +7,7 @@ export const usuarios = [
     email: 'admin@gestorfp.test',
     rol: 'ADMINISTRADOR',
     activo: true,
+    debeCambiarPassword: false,
     fechaAlta: '2026-01-10',
   },
   {
@@ -16,6 +17,7 @@ export const usuarios = [
     email: 'docente1@gestorfp.test',
     rol: 'DOCENTE',
     activo: true,
+    debeCambiarPassword: false,
     fechaAlta: '2026-01-12',
   },
   {
@@ -25,6 +27,7 @@ export const usuarios = [
     email: 'docente2@gestorfp.test',
     rol: 'DOCENTE',
     activo: true,
+    debeCambiarPassword: false,
     fechaAlta: '2026-01-12',
   },
   {
@@ -34,6 +37,7 @@ export const usuarios = [
     email: 'alumno1@gestorfp.test',
     rol: 'ALUMNO',
     activo: true,
+    debeCambiarPassword: false,
     fechaAlta: '2026-02-01',
   },
   {
@@ -43,6 +47,7 @@ export const usuarios = [
     email: 'alumno2@gestorfp.test',
     rol: 'ALUMNO',
     activo: true,
+    debeCambiarPassword: false,
     fechaAlta: '2026-02-01',
   },
 ]

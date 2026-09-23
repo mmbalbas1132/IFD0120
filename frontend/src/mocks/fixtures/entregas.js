@@ -6,7 +6,7 @@ export const entregas = [
     tareaId: 't-2', // plazo ya vencido (2026-09-10) → entrega dentro de plazo, hecha antes de vencer
     alumnoId: 'u-alumno-1',
     fechaEntrega: '2026-09-08T18:30:00Z',
-    ficheroUrl: null,
+    adjunto: null,
     comentario: 'Landing entregada con 3 breakpoints verificados manualmente.',
     estado: 'CALIFICADA',
     evaluacion: {
@@ -22,7 +22,7 @@ export const entregas = [
     tareaId: 't-1', // plazo futuro (2026-10-15)
     alumnoId: 'u-alumno-1',
     fechaEntrega: '2026-09-18T12:00:00Z',
-    ficheroUrl: null,
+    adjunto: null,
     comentario: 'Formulario adjunto en el repositorio del alumno.',
     estado: 'ENTREGADA',
     evaluacion: null,
@@ -33,7 +33,7 @@ export const entregas = [
     tareaId: 't-2',
     alumnoId: 'u-alumno-2',
     fechaEntrega: '2026-09-16T09:00:00Z',
-    ficheroUrl: null,
+    adjunto: null,
     comentario: 'Entrega tardía por incidencia técnica.',
     estado: 'ENTREGADA_FUERA_DE_PLAZO',
     evaluacion: null,

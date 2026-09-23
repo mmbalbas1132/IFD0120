@@ -52,7 +52,10 @@ export async function httpClient(ruta, opciones = {}) {
   const metodo = (opciones.method ?? 'GET').toUpperCase()
   const cabeceras = new Headers(opciones.headers ?? {})
 
-  if (opciones.body && !cabeceras.has('Content-Type')) {
+  // Con FormData (subida de ficheros, RNF-014) el navegador fija el Content-Type multipart con su
+  // boundary: fijarlo aquí a mano lo rompería.
+  const esFormulario = opciones.body instanceof FormData
+  if (opciones.body && !esFormulario && !cabeceras.has('Content-Type')) {
     cabeceras.set('Content-Type', 'application/json')
   }
   if (accessTokenEnMemoria) {
@@ -65,8 +68,9 @@ export async function httpClient(ruta, opciones = {}) {
     if (csrf) cabeceras.set('X-CSRF-Token', csrf)
   }
 
+  const { comoBlob, ...opcionesFetch } = opciones
   const respuesta = await fetch(`${BASE_URL}${ruta}`, {
-    ...opciones,
+    ...opcionesFetch,
     method: metodo,
     headers: cabeceras,
     credentials: 'include', // adjunta la cookie refresh_token (HttpOnly) automáticamente
@@ -76,6 +80,7 @@ export async function httpClient(ruta, opciones = {}) {
     throw await analizarRespuestaError(respuesta)
   }
   if (respuesta.status === 204) return null
+  if (comoBlob) return respuesta.blob()
   const tipoContenido = respuesta.headers.get('content-type') ?? ''
   if (tipoContenido.includes('application/json')) {
     return respuesta.json()
@@ -89,3 +94,12 @@ export const post = (ruta, cuerpo, opciones) =>
 export const put = (ruta, cuerpo, opciones) =>
   httpClient(ruta, { ...opciones, method: 'PUT', body: JSON.stringify(cuerpo ?? {}) })
 export const del = (ruta, opciones) => httpClient(ruta, { ...opciones, method: 'DELETE' })
+
+/** POST `multipart/form-data` (§12, RNF-014): `datos` es un objeto; se omiten los valores vacíos. */
+export function postFormulario(ruta, datos, opciones) {
+  const formulario = new FormData()
+  for (const [clave, valor] of Object.entries(datos ?? {})) {
+    if (valor !== undefined && valor !== null && valor !== '') formulario.append(clave, valor)
+  }
+  return httpClient(ruta, { ...opciones, method: 'POST', body: formulario })
+}

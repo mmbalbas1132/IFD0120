@@ -29,8 +29,26 @@ describe('ListaEntregas + FormularioCalificacion (HU-03)', () => {
     await usuario.type(screen.getByLabelText('Calificación (0–10)'), '12')
     await usuario.click(screen.getByRole('button', { name: 'Guardar calificación' }))
 
-    expect(
-      await screen.findByText('La calificación debe estar entre 0 y 10'),
-    ).toBeInTheDocument()
+    expect(await screen.findByText('La calificación debe estar entre 0 y 10')).toBeInTheDocument()
+  })
+
+  it('muestra el historial con la nota anterior y la nueva tras editar (RF-016, TC.22)', async () => {
+    const usuario = userEvent.setup()
+    await renderAutenticado(<ConRuta />, { rol: 'DOCENTE', ruta: '/docente/tareas/t-2/entregas' })
+    await screen.findByText('Calificada')
+
+    await usuario.click(screen.getByRole('button', { name: 'Editar calificación' }))
+    const campo = screen.getByLabelText('Calificación (0–10)')
+    await usuario.clear(campo)
+    await usuario.type(campo, '9')
+    await usuario.click(screen.getByRole('button', { name: 'Guardar calificación' }))
+    await screen.findByText(/Nota actual: 9/)
+
+    await usuario.click(screen.getByRole('button', { name: 'Ver historial' }))
+    const historial = await screen.findByRole('list', { name: 'Historial de la calificación' })
+    const cambios = historial.querySelectorAll('li')
+    expect(cambios).toHaveLength(2)
+    expect(cambios[0]).toHaveTextContent(/Marcos Iglesias Pena: 8.5 .* → 9/)
+    expect(cambios[1]).toHaveTextContent(/sin calificar → 8.5/)
   })
 })

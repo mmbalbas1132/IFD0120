@@ -21,9 +21,10 @@ const ENLACES_POR_ROL = {
 }
 
 export default function NavPrincipal() {
-  const { usuario, rol, cerrarSesion } = useAuth()
+  const { usuario, rol, cerrarSesion, debeCambiarPassword } = useAuth()
   const navegar = useNavigate()
-  const enlaces = ENLACES_POR_ROL[rol] ?? []
+  // RF-017: con el cambio de contraseña pendiente, el resto de páginas no están disponibles.
+  const enlaces = debeCambiarPassword ? [] : (ENLACES_POR_ROL[rol] ?? [])
 
   async function alCerrarSesion() {
     await cerrarSesion()
@@ -52,6 +53,12 @@ export default function NavPrincipal() {
           <span>
             {usuario.nombre} ({rol})
           </span>
+          <NavLink
+            to="/cambiar-password"
+            className={({ isActive }) => (isActive ? estilos.enlaceActivo : estilos.enlace)}
+          >
+            Cambiar contraseña
+          </NavLink>
           <Boton variante="secundario" type="button" onClick={alCerrarSesion}>
             Cerrar sesión
           </Boton>

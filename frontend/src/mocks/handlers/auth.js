@@ -1,6 +1,5 @@
 import { http, HttpResponse } from 'msw'
 import { db, generarId, persistirEstadoSesion } from '../db.js'
-import { buscarUsuarioPorEmail, CONTRASENA_SIMULADA } from '../fixtures/usuarios.js'
 import { crearAccessTokenSimulado, decodificarAccessTokenSimulado } from '../fakeJwt.js'
 import { escribirCookieDocumento, borrarCookieDocumento } from '../../utils/cookies.js'
 import { BASE, errorContrato, obtenerSesion, refreshTokenId } from './utils.js'
@@ -65,6 +64,24 @@ function respuestaConCookies(body, { refreshId, csrf }, status = 200) {
   return HttpResponse.json(body, { status, headers })
 }
 
+// RF-017: mientras el usuario tenga que cambiar la contraseña, solo puede autenticarse y cambiarla.
+// Este handler va el primero: si no corta la petición, MSW sigue con el handler específico.
+const RUTA_CAMBIO_PASSWORD = /^\/api\/v1\/usuarios\/[^/]+\/password$/
+
+export const cambioPasswordObligatorioHandler = http.all(`${BASE}/*`, ({ request }) => {
+  const { pathname } = new URL(request.url)
+  if (pathname.startsWith(`${BASE}/auth/`)) return undefined
+  if (request.method === 'PUT' && RUTA_CAMBIO_PASSWORD.test(pathname)) return undefined
+  const sesion = obtenerSesion(request)
+  if (!sesion?.usuario.debeCambiarPassword) return undefined
+  return errorContrato(
+    403,
+    'CAMBIO_PASSWORD_REQUERIDO',
+    'Debes cambiar tu contraseña antes de continuar',
+    pathname,
+  )
+})
+
 export const authHandlers = [
   http.post(`${BASE}/auth/login`, async ({ request }) => {
     const path = '/api/v1/auth/login'
@@ -93,8 +110,8 @@ export const authHandlers = [
       )
     }
 
-    const usuario = buscarUsuarioPorEmail(email)
-    if (!usuario || !usuario.activo || password !== CONTRASENA_SIMULADA) {
+    const usuario = db.usuarios.find((u) => u.email.toLowerCase() === String(email).toLowerCase())
+    if (!usuario || !usuario.activo || password !== db.credenciales.get(usuario.id)) {
       registrarIntentoFallido(email)
       return errorContrato(401, 'UNAUTHORIZED', 'Credenciales inválidas', path)
     }
@@ -111,6 +128,7 @@ export const authHandlers = [
           apellidos: usuario.apellidos,
           email: usuario.email,
           rol: usuario.rol,
+          debeCambiarPassword: usuario.debeCambiarPassword, // RF-017
         },
       },
       cookies,
@@ -137,6 +155,7 @@ export const authHandlers = [
         apellidos: usuario.apellidos,
         email: usuario.email,
         rol: usuario.rol,
+        debeCambiarPassword: usuario.debeCambiarPassword, // RF-017
       },
     })
   }),

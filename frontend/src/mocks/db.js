@@ -11,7 +11,8 @@
 // recargar el cliente). Por eso `refreshSesiones`/`jtiRevocados` se replican en `sessionStorage`
 // (vida ligada a la pestaña, igual que una cookie de sesión) — solo fuera de Vitest, para no
 // romper el aislamiento entre pruebas (ver tests/setup.js).
-import { usuarios } from './fixtures/usuarios.js'
+import { usuarios, CONTRASENA_SIMULADA } from './fixtures/usuarios.js'
+import { adjuntos } from './fixtures/adjuntos.js'
 import { modulos, unidadesFormativas, matriculas } from './fixtures/modulos.js'
 import { tareas } from './fixtures/tareas.js'
 import { entregas } from './fixtures/entregas.js'
@@ -24,6 +25,38 @@ const PERSISTENCIA_ACTIVA =
 
 function clonar(valor) {
   return JSON.parse(JSON.stringify(valor))
+}
+
+// RNF-014: ficheros subidos, en memoria (se pierden al recargar, como el resto del mock).
+function adjuntosIniciales() {
+  return new Map(
+    adjuntos.map(({ contenido, ...meta }) => [
+      meta.id,
+      { ...meta, datos: new TextEncoder().encode(contenido) },
+    ]),
+  )
+}
+
+// RF-017/RF-018: contraseña vigente de cada usuario del mock (texto plano: es un mock de
+// desarrollo que nunca llega al build de producción, TC.19; el servidor real guarda BCrypt).
+function credencialesIniciales() {
+  return new Map(usuarios.map((u) => [u.id, CONTRASENA_SIMULADA]))
+}
+
+// RF-016: las calificaciones de las fixtures entran en el historial como su primer registro.
+function historialInicial() {
+  return entregas
+    .filter((e) => e.evaluacion)
+    .map((e) => ({
+      id: `hev-${e.evaluacion.id}`,
+      evaluacionId: e.evaluacion.id,
+      autorCambioId: e.evaluacion.evaluadorId,
+      fechaCambio: e.evaluacion.fechaEvaluacion,
+      calificacionAnterior: null,
+      calificacionNueva: e.evaluacion.calificacion,
+      observacionesAnteriores: null,
+      observacionesNuevas: e.evaluacion.observaciones,
+    }))
 }
 
 function estadoSesionInicial() {
@@ -60,6 +93,9 @@ export const db = {
   entregas: clonar(entregas),
   recursos: clonar(recursos),
   anuncios: clonar(anuncios),
+  adjuntos: adjuntosIniciales(),
+  credenciales: credencialesIniciales(),
+  historialEvaluaciones: historialInicial(), // RF-016: solo inserción
   // jti revocados (simula tokens_revocados de RNF-002/plan.md §6).
   ...estadoSesionInicial(),
 }
@@ -79,6 +115,9 @@ export function resetearDb() {
   db.entregas = clonar(entregas)
   db.recursos = clonar(recursos)
   db.anuncios = clonar(anuncios)
+  db.adjuntos = adjuntosIniciales()
+  db.credenciales = credencialesIniciales()
+  db.historialEvaluaciones = historialInicial()
   db.jtiRevocados = new Set()
   db.refreshSesiones = new Map()
 }
