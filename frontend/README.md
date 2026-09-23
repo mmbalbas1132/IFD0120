@@ -100,5 +100,4 @@ escrita fuera de `features/admin` no se compila.
   mobile-first en cada `*.module.css` (ver comentarios `@media` en cada uno). Verificados con 39
   capturas a viewport exacto (13 rutas × 3 anchos, Playwright + Chrome): sin scroll horizontal
   ni solapes. Las tablas anchas se desplazan dentro de su propio contenedor enfocable, no la
-  página. Las capturas se adjuntan al PR de cierre del módulo (ver nota de TC.16 en
-  `specs/001-entorno-cliente/tasks.md`).
+  página. Hojas resumen por ancho en `docs/capturas/tc16/`, enlazadas en el PR #2.
