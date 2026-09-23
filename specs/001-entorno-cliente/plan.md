@@ -4,7 +4,8 @@
 `memory/constitution.md` v3.0.0, Principios 3 (agnóstico a tecnología, ver
 `docs/adr/0003-constitucion-agnostica-tecnologia.md`) y 5 (enmendados) · **Rama:** `feature/001-entorno-cliente`
 **Unidad de competencia:** UC0491_3 — Desarrollar elementos software en el entorno cliente
-**Fecha:** 2026-09-22
+**Fecha:** 2026-09-22 · revisado 2026-09-23 para alinear el cliente con `spec.md` v1.7 (TC.25–TC.30,
+§6.2 y §6.3), en la rama `fix/alinear-cliente-spec-v1.7`
 
 > Este módulo construye el cliente **completo y funcional** de las 9 HU de `spec.md`, contra una
 > **API simulada** que implementa fielmente el contrato de `spec.md` §12. No depende de que
@@ -121,7 +122,9 @@ frontend/
 │   │   ├── entregasApi.js
 │   │   ├── evaluacionesApi.js
 │   │   ├── recursosApi.js
-│   │   └── anunciosApi.js
+│   │   ├── anunciosApi.js
+│   │   ├── adjuntosApi.js       # descarga autenticada (Blob + URL de objeto), §6.1
+│   │   └── cicloApi.js          # GET/PUT /ciclo (RF-019), TC.27
 │   ├── mocks/
 │   │   ├── browser.js            # arranque de MSW en dev
 │   │   ├── handlers/              # un handler por recurso, fiel a spec.md §12
@@ -148,9 +151,16 @@ frontend/
 │   │   └── admin/                 # única carpeta donde se usan clases Tailwind
 │   │       ├── TablaUsuarios.jsx
 │   │       ├── FormularioModulo.jsx
+│   │       ├── FormularioCiclo.jsx    # horario y requisitos de acceso (RF-019), TC.27
 │   │       └── GestionMatriculas.jsx
 │   ├── components/
 │   │   └── compartidos/           # botones, inputs, alertas — CSS3 a mano, reutilizables en todas las áreas
+│   │                              # (incluye ConfirmacionBorrado.jsx, §7, TC.29)
+│   ├── utils/
+│   │   ├── fechas.js              # formato y conversión hora peninsular ↔ UTC (RNF-010), §6.2
+│   │   ├── adjuntos.js            # límites de RNF-014, compartidos con el mock
+│   │   ├── password.js            # reglas de RF-018, compartidas con el mock
+│   │   └── cookies.js
 │   └── styles/
 │       ├── variables.css          # tokens de color/tipografía (:root)
 │       └── base.css               # reset, tipografía base
@@ -209,6 +219,46 @@ frontend/
   `/auth/refresh`); mientras sea `true`, `RutaProtegida.jsx` redirige toda ruta protegida a
   `/cambiar-password` (`auth/PaginaCambiarPassword.jsx`, CSS Module de `auth/`).
 
+### 6.2 Fechas y zona horaria (RNF-010, TC.26)
+
+- **Una sola puerta:** ningún componente llama a `toLocaleString` ni construye fechas a mano; todo
+  pasa por `src/utils/fechas.js`:
+  - `formatearFechaHora(iso)` → `dd/mm/aaaa hh:mm` en `Europe/Madrid` con `Intl.DateTimeFormat`
+    (`timeZone: 'Europe/Madrid'`), independientemente de la zona del navegador.
+  - `horaPeninsularAUtc(valorDatetimeLocal)` → convierte lo que teclea el docente en un
+    `<input type="datetime-local">` (hora peninsular, sin zona) a ISO 8601 en UTC con `Z`.
+  - `utcAValorDatetimeLocal(iso)` → la inversa, para precargar el formulario al editar una tarea.
+- **Sin dependencias nuevas:** se usa la API `Intl` del navegador. La conversión calcula el
+  desfase de `Europe/Madrid` para ese instante con `Intl.DateTimeFormat#formatToParts`, en dos
+  pasadas para acertar en los días de cambio de hora. Añadir una librería de fechas (p. ej.
+  `date-fns-tz`) solo por tres funciones no compensa un paquete más que mantener (Principio 3,
+  criterio de reversibilidad: se puede sustituir sin tocar componentes, porque todo pasa por
+  `fechas.js`).
+- **Días de cambio de hora:** una hora que no existe (el último domingo de marzo, de 2:00 a 2:59)
+  se desplaza hacia delante una hora; una hora que se repite (el último domingo de octubre, de
+  2:00 a 2:59) se interpreta como la primera de las dos. Es la regla habitual de las librerías de
+  fechas (la opción `compatible` de la API `Temporal`) y queda cubierta por pruebas.
+- La validación «fecha límite futura» del formulario compara instantes en UTC (`Date.now()` frente
+  al valor convertido), no cadenas de texto.
+
+### 6.3 Reglas del mock para la spec v1.6/v1.7 (TC.25, TC.27–TC.30)
+
+- **Estados:** las entregas tienen `estado` `ENTREGADA`/`CALIFICADA` y `fueraDePlazo` aparte; las
+  tareas no tienen `estado`. El mock calcula el plazo con la hora del propio mock (`new Date()`),
+  con la igualdad exacta dentro de plazo, y conserva `fueraDePlazo` al calificar.
+- **Tareas:** ampliar la fecha límite recalcula `fueraDePlazo` de sus entregas; acortarla con
+  entregas o borrar una tarea con entregas → `409` con los mensajes de la spec.
+- **Quién no ha entregado:** `GET /tareas/{id}/entregas` devuelve `{ entregas, sinEntregar }`,
+  calculando `sinEntregar` con las matrículas `ACTIVA` del módulo.
+- **Ciclo:** `db.ciclo` (un único objeto, sembrado desde `fixtures/ciclo.js`), `GET /ciclo`
+  público y `PUT /ciclo` solo para el ADMINISTRADOR; los módulos llevan `descripcion`.
+- **Acceso:** `alumnoMatriculadoEnModulo` pasa a leer `db.matriculas` (hoy lee los fixtures, así
+  que revocar una matrícula en `npm run dev` no tiene efecto); con la matrícula en `BAJA`, `403`
+  en tareas, recursos, anuncios y al entregar, y `200` en calificaciones y adjuntos propios.
+- **Baja de usuario:** `DELETE /usuarios/{id}` marca como revocadas las sesiones de refresco de
+  ese usuario y `obtenerSesion` ya rechaza a usuarios inactivos, así que su siguiente petición da
+  `401`; la baja de un docente responsable de un módulo → `409`.
+
 ## 7. Accesibilidad (WCAG 2.2 AA) en este módulo
 
 - Todo formulario usa `<label htmlFor>` asociado, `aria-describedby` para mensajes de error, y
@@ -218,6 +268,12 @@ frontend/
 - Contraste mínimo 4.5:1 verificado en `styles/variables.css` (tokens de color) antes de usarlos
   en cualquier componente.
 - `vitest-axe` se ejecuta contra cada componente de página completa (no solo átomos) en CI.
+- **Confirmación de borrado (TC.29):** `components/compartidos/ConfirmacionBorrado.jsx` muestra la
+  pregunta dentro de la página, junto al elemento, con los botones «Borrar» y «Cancelar». Al
+  aparecer, el foco va a «Cancelar» (la opción segura); `Escape` cancela y devuelve el foco al botón
+  que la abrió. No se usa `window.confirm`: no se puede estilizar ni probar, y bloquea la página.
+- **Fechas legibles:** todas las fechas visibles pasan por `formatearFechaHora` (§6.2), así que un
+  lector de pantalla lee siempre el mismo formato `dd/mm/aaaa hh:mm`.
 
 ## 8. Plan de pruebas de este módulo
 
@@ -227,6 +283,7 @@ frontend/
 | Accesibilidad | `vitest-axe` | Cada página completa de `features/*` | 0 violaciones críticas/serias |
 | Contrato mock ↔ spec | Revisión manual + test de humo | `mocks/handlers/` contra la tabla de `spec.md` §12 | Cada endpoint del contrato tiene un handler equivalente |
 | Visual/responsive | Verificación manual en 480/768/1024px | Todas las páginas | Sin scroll horizontal, sin solapes |
+| Fechas (RNF-010) | Vitest, con `TZ=America/New_York` en un script propio (`npm run test:tz`) | `utils/fechas.js` y el envío de la fecha límite | Mismo resultado en cualquier zona del entorno; días de cambio de hora cubiertos |
 
 ## 9. Salida de este módulo (Definition of Done)
 
