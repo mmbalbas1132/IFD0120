@@ -12,7 +12,10 @@ subida de ficheros en §12, cierran CA-01, CA-02 y CA-06; v1.5 (2026-09-23) — 
 temporal en el alta de usuario, RF-008; v1.6 (2026-09-23) — clarificaciones para el servidor: zona
 horaria, `fueraDePlazo`, baja de usuario, cambio de plazo y matrícula en baja; v1.7 (2026-09-23) —
 alcance: información del ciclo (RF-019), sin estados `PENDIENTE`/`BORRADOR`, edición y borrado
-de recursos, anuncios y tareas)
+de recursos, anuncios y tareas; v1.8 (2026-09-23) — cierre de huecos del contrato antes de
+implementar `002`: `POST /auth/logout` en §12, qué edita un usuario de sí mismo, consulta de
+matrículas incrustada en `GET /modulos`, entrega vacía, paginación, límite de intentos solo en el
+login y casos límite de alumnado dado de baja)
 **Rige bajo:** `memory/constitution.md` v3.0.0
 **Certificado de referencia:** IFCD0210 — Desarrollo de aplicaciones con tecnologías web
 
@@ -68,6 +71,11 @@ una decisión de stack que matiza esta trazabilidad en el entorno cliente.
 - Q: ¿Qué debe significar el estado `PENDIENTE` de una entrega, si una entrega solo se crea cuando el alumno entrega algo? (§8, HU-03) → A: Se elimina como estado guardado; el listado de entregas de una tarea muestra además, sin guardarlo, al alumnado con matrícula activa que aún no ha entregado (RF-005, §12).
 - Q: ¿Pueden los docentes guardar una tarea como borrador, invisible para el alumnado, y publicarla más tarde? (§8, HU-01) → A: No: una tarea se publica al crearla (`fechaPublicacion` = momento de creación) y se elimina el estado de la tarea (`BORRADOR`/`PUBLICADA`).
 - Q: ¿Pueden los docentes corregir o retirar recursos, anuncios y tareas después de publicarlos? (§12, RF-012, RF-013) → A: El docente del módulo puede editar y borrar recursos y anuncios (borrar un DOCUMENTO borra su fichero); las tareas se editan como ya existía y solo se borran si no tienen entregas (`409` si las tienen).
+- Q: Un usuario que no es ADMINISTRADOR, ¿qué puede cambiar de sí mismo con `PUT /usuarios/{id}`? (RF-008, RNF-012) → A: Solo nombre y apellidos; el resto de campos (rol, email, activo, `debeCambiarPassword`) se ignoran sin error. El email es la identidad de acceso y solo lo cambia el ADMINISTRADOR.
+- Q: ¿Cómo consulta el ADMINISTRADOR las matrículas existentes, si §12 no tiene un `GET` de matrículas? (RF-010) → A: `GET /modulos` incluye en cada módulo sus unidades formativas y, solo cuando quien consulta es ADMINISTRADOR, sus matrículas `ACTIVA`; al resto de roles no se les muestran los datos del alumnado matriculado.
+- Q: ¿Se limita también el número de peticiones a `/auth/refresh`? (RNF-011) → A: No: el límite de intentos se aplica solo a `/auth/login`, el único endpoint que recibe una contraseña; el refresh token es un valor aleatorio en cookie `HttpOnly` que no se puede adivinar.
+- Q: ¿Aparece en «sin entregar» un alumno dado de baja como usuario, y se puede matricular a un usuario que no es ALUMNO o está dado de baja? (RF-005, RF-010) → A: El alumno dado de baja (`activo = false`) no aparece en `sinEntregar`; matricular a un usuario que no es ALUMNO o no está activo responde `400`.
+- Q: ¿Qué pasa si un alumno envía una entrega sin fichero ni comentario? (RF-003) → A: Se rechaza con `422` («La entrega debe incluir un fichero y/o un comentario»), como ya hace el backend simulado de `001`.
 
 ## 2. Objetivos
 
@@ -380,14 +388,14 @@ Característica: Accesibilidad
 |---|---|---|
 | RF-001 | El sistema permite a un DOCENTE crear una tarea asociada a una unidad formativa de un módulo que imparte, con título, descripción, fecha límite y un fichero adjunto opcional (RNF-014). La tarea se publica al crearla y es visible desde ese momento para el alumnado matriculado; su fecha de publicación la fija el servidor en ese instante. No hay borradores en v1.0. | UC0492_3, UC0491_3 |
 | RF-002 | El sistema valida que la fecha límite de una tarea sea posterior a la fecha de publicación, tanto en cliente como en servidor. | UC0491_3, UC0492_3 |
-| RF-003 | El sistema permite a un ALUMNO matriculado adjuntar un fichero y/o comentario como entrega de una tarea publicada en un módulo en el que está matriculado. Hay como máximo una entrega por alumno y tarea: mientras no esté calificada, una nueva entrega reemplaza a la anterior (contenido, fecha y estado de plazo se recalculan); una vez calificada, el reemplazo se rechaza con `409`. | UC0491_3, UC0492_3 |
+| RF-003 | El sistema permite a un ALUMNO matriculado adjuntar un fichero y/o comentario como entrega de una tarea publicada en un módulo en el que está matriculado. Hay como máximo una entrega por alumno y tarea: mientras no esté calificada, una nueva entrega reemplaza a la anterior (contenido, fecha y estado de plazo se recalculan); una vez calificada, el reemplazo se rechaza con `409`. Una entrega sin fichero ni comentario se rechaza con `422`. | UC0491_3, UC0492_3 |
 | RF-004 | El sistema marca automáticamente una entrega como fuera de plazo (`fueraDePlazo`, independiente de su `estado`, que se conserva al calificarla) si su fecha/hora es posterior a la fecha límite de la tarea. La comparación se hace sobre instantes en UTC, con la hora de entrega fijada por el servidor al recibirla (nunca la que envía el cliente); una entrega exactamente a la hora límite está dentro de plazo. Si el docente **amplía** la fecha límite, se recalcula `fueraDePlazo` de todas las entregas de la tarea, también de las ya calificadas; **acortarla** cuando la tarea ya tiene entregas se rechaza con `409`. | UC0492_3 |
-| RF-005 | El sistema permite a un DOCENTE registrar una calificación numérica (0–10, hasta un decimal) y observaciones textuales para una entrega de su módulo. Al consultar una tarea, el DOCENTE ve las entregas recibidas y, aparte, el alumnado con matrícula `ACTIVA` en el módulo que aún no ha entregado (se calcula al consultar; no se guarda como entrega). | UC0492_3, UC0493_3 |
+| RF-005 | El sistema permite a un DOCENTE registrar una calificación numérica (0–10, hasta un decimal) y observaciones textuales para una entrega de su módulo. Al consultar una tarea, el DOCENTE ve las entregas recibidas y, aparte, el alumnado con matrícula `ACTIVA` en el módulo que aún no ha entregado (se calcula al consultar; no se guarda como entrega), sin incluir a los usuarios dados de baja (`activo = false`). | UC0492_3, UC0493_3 |
 | RF-006 | El sistema rechaza calificaciones fuera del rango 0–10 con un mensaje de error explícito, tanto en cliente como en servidor. | UC0491_3, UC0492_3 |
 | RF-007 | El sistema permite a un ALUMNO consultar únicamente sus propias entregas y calificaciones, agrupadas por módulo y unidad formativa, incluidas las de módulos cuya matrícula ya está en `BAJA` (RF-010). | UC0492_3, UC0493_3 |
-| RF-008 | El sistema permite a un ADMINISTRADOR crear, editar y dar de baja (lógica) usuarios, asignándoles un rol (ADMINISTRADOR, DOCENTE, ALUMNO). Al crear un usuario, el servidor le genera una contraseña temporal con las mismas reglas que en RF-017: se devuelve una única vez en la respuesta del alta y el usuario debe cambiarla en su primer acceso. **Baja:** el usuario pierde el acceso en el acto (se revocan todas sus sesiones y tokens, RNF-002, y cualquier petición posterior responde `401`); sus entregas, calificaciones y matrículas se conservan sin cambios; la baja de un DOCENTE que es responsable de algún módulo se rechaza con `409` hasta que el módulo se reasigne. | UC0492_3 |
+| RF-008 | El sistema permite a un ADMINISTRADOR crear, editar y dar de baja (lógica) usuarios, asignándoles un rol (ADMINISTRADOR, DOCENTE, ALUMNO). Al crear un usuario, el servidor le genera una contraseña temporal con las mismas reglas que en RF-017: se devuelve una única vez en la respuesta del alta y el usuario debe cambiarla en su primer acceso. Un usuario que no es ADMINISTRADOR solo puede editar su propio nombre y apellidos; cualquier otro campo que envíe (rol, email, activo, `debeCambiarPassword`) se ignora. **Baja:** el usuario pierde el acceso en el acto (se revocan todas sus sesiones y tokens, RNF-002, y cualquier petición posterior responde `401`); sus entregas, calificaciones y matrículas se conservan sin cambios; la baja de un DOCENTE que es responsable de algún módulo se rechaza con `409` hasta que el módulo se reasigne. | UC0492_3 |
 | RF-009 | El sistema permite a un ADMINISTRADOR crear módulos y sus unidades formativas, con código único, nombre y horas. | UC0492_3 |
-| RF-010 | El sistema permite a un ADMINISTRADOR matricular a un ALUMNO en uno o más módulos y consultar/revocar matriculaciones existentes. Con la matrícula en `BAJA`, el alumno deja de ver las tareas, recursos y anuncios del módulo y no puede entregar (`403`), pero conserva el acceso a sus propias entregas y calificaciones de ese módulo (RF-007) y a los ficheros que él entregó. "Alumno matriculado", en el resto de la spec, significa con matrícula `ACTIVA`. | UC0492_3 |
+| RF-010 | El sistema permite a un ADMINISTRADOR matricular a un ALUMNO en uno o más módulos y consultar/revocar matriculaciones existentes (la consulta va incrustada en `GET /modulos`, §12). Matricular a un usuario que no es ALUMNO o que no está activo se rechaza con `400`. Con la matrícula en `BAJA`, el alumno deja de ver las tareas, recursos y anuncios del módulo y no puede entregar (`403`), pero conserva el acceso a sus propias entregas y calificaciones de ese módulo (RF-007) y a los ficheros que él entregó. "Alumno matriculado", en el resto de la spec, significa con matrícula `ACTIVA`. | UC0492_3 |
 | RF-011 | El sistema expone una vista pública (sin autenticación) con el listado de módulos, su descripción y horas totales, y la información general del ciclo (horario y requisitos de acceso, RF-019), sin datos personales de alumnado. | UC0491_3, UC0493_3 |
 | RF-012 | El sistema permite a un DOCENTE publicar recursos didácticos (DOCUMENTO, VIDEO o ENLACE) asociados a una unidad formativa de su módulo. Un DOCUMENTO lleva un fichero subido (RNF-014); VIDEO y ENLACE llevan una URL. El DOCENTE del módulo puede editar (título, descripción, URL; el tipo no cambia) y borrar sus recursos; borrar un DOCUMENTO borra también su fichero. | UC0491_3, UC0492_3 |
 | RF-013 | El sistema permite a un DOCENTE publicar anuncios a nivel de módulo, con opción de marcarlos como destacados, y editarlos o borrarlos después. | UC0492_3 |
@@ -405,7 +413,7 @@ Característica: Accesibilidad
 | RNF-001 | Rendimiento | p95 del tiempo de respuesta de cualquier endpoint de la API < 2 s bajo carga nominal. |
 | RNF-002 | Seguridad — sesión | Contraseñas con BCrypt (coste ≥ 10). El **refresh token** se entrega en cookie `httpOnly` + `Secure` + `SameSite=Strict` (nunca accesible a JavaScript); el **access token** JWT vive solo en memoria del cliente (variable de React, nunca `localStorage`/`sessionStorage`), expiración ≤ 15 min. Cada JWT lleva un claim `jti` único; al cerrar sesión o revocar, su `jti` se inserta en la tabla `tokens_revocados` (PostgreSQL, con `fecha_expiracion` para limpieza periódica — sin Redis, según ADR-0002) y se rechaza en cualquier petición posterior (protección de *replay*). |
 | RNF-003 | Seguridad — entrada/salida | Protección activa frente a XSS (React escapa por defecto; cualquier renderizado de HTML en cliente, por ejemplo contenido enriquecido de un anuncio, exige sanitizar con DOMPurify antes de usar `dangerouslySetInnerHTML` — prohibido sin ese paso), CSRF (esquema de doble token: cookie no-`httpOnly` con un valor aleatorio que el cliente debe repetir en una cabecera `X-CSRF-Token` en toda petición mutante — `POST`/`PUT`/`DELETE`) e inyección SQL (consultas parametrizadas vía JPA, sin excepciones). |
-| RNF-011 | Seguridad — fuerza bruta | `POST /auth/login` (y cualquier otro endpoint de autenticación) limitado por Bucket4j con clave compuesta IP+usuario; a partir de 5 intentos fallidos en 15 min, respuesta `429` con `Retry-After`. Sin infraestructura adicional (sin Redis), consistente con RNF-008. |
+| RNF-011 | Seguridad — fuerza bruta | `POST /auth/login` limitado por Bucket4j con clave compuesta IP+usuario: se admiten 5 intentos fallidos en 15 min y el 6.º intento dentro de esa ventana (y los siguientes) recibe `429` con `Retry-After`, aunque la contraseña sea correcta. Solo se limita el login, el único endpoint que recibe una contraseña; `/auth/refresh` usa un token aleatorio en cookie `HttpOnly` que no se puede adivinar. Sin infraestructura adicional (sin Redis), consistente con RNF-008. |
 | RNF-012 | Seguridad — autorización | Cada endpoint que expone datos de un usuario concreto (calificaciones, entregas, módulos propios) verifica no solo el rol (`@PreAuthorize`) sino la **propiedad del recurso** en la capa `service`; cada uno de estos endpoints tiene al menos una prueba de integración que verifica `403` para un usuario del rol correcto pero sin esa propiedad. |
 | RNF-004 | Accesibilidad | Cumplimiento WCAG 2.2 nivel AA en todas las vistas del cliente; puntuación Lighthouse Accessibility ≥ 90 — **exigible por igual con React que con HTML plano**: la elección de framework en §11 no reduce este umbral. |
 | RNF-005 | Usabilidad | Diseño responsive mobile-first; navegación completa sin ratón (accesible por teclado). |
@@ -652,27 +660,28 @@ donde se indique público.
 |---|---|---|---|---|
 | POST | `/auth/login` | Público | Autentica y devuelve JWT + refresh token; el usuario devuelto incluye `debeCambiarPassword` (RF-017) | 200 |
 | POST | `/auth/refresh` | Público (refresh token) | Renueva el JWT | 200 |
+| POST | `/auth/logout` | Autenticado | Cierra la sesión: revoca el `jti` del access token y la sesión del refresh token (RNF-002) y borra las cookies `refresh_token` y `csrf_token` | 204 |
 | GET | `/modulos/publicos` | Público | Listado de módulos (código, nombre, descripción y horas) para el panel de visitante | 200 |
 | GET | `/ciclo` | Público | Información general del ciclo: horario y requisitos de acceso (RF-011, RF-019) | 200 |
 | PUT | `/ciclo` | ADMINISTRADOR | Edita la información general del ciclo (RF-019) | 200 |
-| GET | `/usuarios` | ADMINISTRADOR | Lista usuarios (paginada) | 200 |
+| GET | `/usuarios` | ADMINISTRADOR | Lista usuarios, paginada con `?pagina=` (desde 0) y `?tamano=` (20 por defecto); responde `{ contenido, totalElementos, pagina, tamano }` | 200 |
 | POST | `/usuarios` | ADMINISTRADOR | Crea un usuario; la respuesta incluye una única vez `passwordTemporal` y el usuario queda con `debeCambiarPassword: true` (RF-008, RF-017) | 201 |
 | GET | `/usuarios/{id}` | ADMINISTRADOR, propio usuario | Detalle de usuario | 200 |
-| PUT | `/usuarios/{id}` | ADMINISTRADOR, propio usuario | Edita usuario | 200 |
+| PUT | `/usuarios/{id}` | ADMINISTRADOR, propio usuario | Edita usuario; el propio usuario (no ADMINISTRADOR) solo cambia `nombre` y `apellidos`, y el resto de campos se ignoran (RF-008) | 200 |
 | DELETE | `/usuarios/{id}` | ADMINISTRADOR | Baja lógica de usuario: revoca sus sesiones al instante; `409` si es docente responsable de algún módulo (RF-008) | 204 |
 | POST | `/usuarios/{id}/restablecer-password` | ADMINISTRADOR | Genera una contraseña temporal, la devuelve una única vez (`{ "passwordTemporal": "…" }`) y obliga a cambiarla en el siguiente acceso (RF-017) | 200 |
 | PUT | `/usuarios/{id}/password` | Propio usuario | Cambia la propia contraseña (`{ passwordActual, passwordNueva }`, reglas de RF-018); desactiva la obligación de cambio de RF-017 | 204 |
-| GET | `/modulos` | Autenticado | Lista módulos (filtrable por docente) | 200 |
+| GET | `/modulos` | Autenticado | Lista los módulos visibles para quien consulta (ADMINISTRADOR: todos, filtrables con `?docenteId=`; DOCENTE: los que imparte; ALUMNO: aquellos con matrícula `ACTIVA`). Cada módulo incluye `unidadesFormativas` (ordenadas por `orden`) y, **solo para el ADMINISTRADOR**, `matriculas`: las `ACTIVA` con `{ id, alumnoId, alumnoNombre, fechaMatricula }` (RF-010) | 200 |
 | POST | `/modulos` | ADMINISTRADOR | Crea módulo | 201 |
 | PUT | `/modulos/{id}` | ADMINISTRADOR | Edita módulo | 200 |
 | POST | `/modulos/{id}/unidades-formativas` | ADMINISTRADOR | Crea unidad formativa en el módulo | 201 |
-| POST | `/matriculas` | ADMINISTRADOR | Matricula un alumno en un módulo | 201 |
+| POST | `/matriculas` | ADMINISTRADOR | Matricula un alumno en un módulo (`{ alumnoId, moduloId }`); `400` si el usuario no es ALUMNO o no está activo, `409` si ya tiene una matrícula `ACTIVA` en ese módulo (RF-010) | 201 |
 | DELETE | `/matriculas/{id}` | ADMINISTRADOR | Da de baja una matrícula | 204 |
 | GET | `/unidades-formativas/{id}/tareas` | Autenticado (matriculado o docente) | Lista tareas de la unidad formativa | 200 |
 | POST | `/unidades-formativas/{id}/tareas` | DOCENTE (del módulo) | Crea una tarea (multipart, `fichero` opcional) | 201 |
-| PUT | `/tareas/{id}` | DOCENTE (del módulo) | Edita una tarea; ampliar la fecha límite recalcula `fueraDePlazo` de sus entregas y acortarla con entregas ya hechas responde `409` (RF-004) | 200 |
+| PUT | `/tareas/{id}` | DOCENTE (del módulo) | Edita una tarea (JSON con `titulo`, `descripcion` y `fechaLimite`; el fichero adjunto no se cambia al editar); ampliar la fecha límite recalcula `fueraDePlazo` de sus entregas y acortarla con entregas ya hechas responde `409` (RF-004) | 200 |
 | DELETE | `/tareas/{id}` | DOCENTE (del módulo) | Borra una tarea sin entregas (y su fichero adjunto); `409` si ya tiene entregas | 204 |
-| POST | `/tareas/{id}/entregas` | ALUMNO (matriculado) | Registra la entrega del alumno (multipart, `fichero` y/o `comentario`), o la reemplaza si aún no está calificada (RF-003); `409` si ya está calificada | 201 (nueva) / 200 (reemplazo) |
+| POST | `/tareas/{id}/entregas` | ALUMNO (matriculado) | Registra la entrega del alumno (multipart, `fichero` y/o `comentario`), o la reemplaza si aún no está calificada (RF-003); `409` si ya está calificada; `422` si no lleva ni fichero ni comentario | 201 (nueva) / 200 (reemplazo) |
 | GET | `/tareas/{id}/entregas` | DOCENTE (del módulo) | Entregas de una tarea: `{ "entregas": [...], "sinEntregar": [{ "alumnoId", "nombre", "apellidos" }] }`, donde `sinEntregar` es el alumnado con matrícula `ACTIVA` sin entrega (RF-005) | 200 |
 | PUT | `/entregas/{id}/evaluacion` | DOCENTE (del módulo) | Registra/edita la calificación de una entrega; cada cambio queda en el historial (RF-016) | 200 |
 | GET | `/entregas/{id}/evaluacion/historial` | DOCENTE (del módulo), ADMINISTRADOR | Historial de cambios de la calificación, del más reciente al más antiguo (RF-016) | 200 |
@@ -696,8 +705,15 @@ descarga con `GET /adjuntos/{id}`. Reemplazar una entrega (RF-003) sustituye tam
 **Códigos de error estandarizados:** `400` (validación), `401` (no autenticado), `403` (sin
 permiso sobre el recurso), `404` (no encontrado), `409` (conflicto, p. ej. código duplicado),
 `413` (fichero adjunto de más de 10 MB), `415` (tipo de fichero no permitido, ver RNF-014),
-`422` (regla de negocio violada, p. ej. calificación fuera de rango), `500` (error no controlado,
-respuesta genérica sin detalles internos).
+`422` (regla de negocio violada, p. ej. calificación fuera de rango), `429` (demasiados intentos de
+login, con cabecera `Retry-After`, RNF-011), `500` (error no controlado, respuesta genérica sin
+detalles internos).
+
+**Forma de los cuerpos:** este contrato fija métodos, rutas, roles, códigos y los campos citados en
+cada fila. Los nombres de campo de cada DTO que no aparecen aquí son los que usa el backend simulado
+de `001` (`frontend/src/mocks/handlers/`), que es la referencia ejecutable del contrato: el
+servidor devuelve los mismos campos con los mismos nombres, y cualquier diferencia se resuelve
+actualizando esta sección, no divergiendo en silencio.
 
 Todas las respuestas de error siguen el mismo contrato:
 
