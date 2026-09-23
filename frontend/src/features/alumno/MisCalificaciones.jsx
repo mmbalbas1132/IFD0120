@@ -34,29 +34,39 @@ export default function MisCalificaciones() {
     <main className={estilos.contenedor}>
       <h1>Mis calificaciones</h1>
       {[...grupos.entries()].map(([modulo, filas]) => (
-        <table key={modulo} className={estilos.tablaCalificaciones}>
-          <caption>{modulo}</caption>
-          <thead>
-            <tr>
-              <th scope="col">Unidad formativa</th>
-              <th scope="col">Tarea</th>
-              <th scope="col">Estado</th>
-              <th scope="col">Calificación</th>
-              <th scope="col">Observaciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filas.map((fila) => (
-              <tr key={fila.entregaId}>
-                <td>{fila.unidadFormativaNombre}</td>
-                <td>{fila.tareaTitulo}</td>
-                <td>{fila.estado}</td>
-                <td>{fila.evaluacion?.calificacion ?? '—'}</td>
-                <td>{fila.evaluacion?.observaciones ?? '—'}</td>
+        // TC.16: en móvil la tabla se desplaza dentro de su contenedor, no la página entera;
+        // región con nombre y tabIndex para que el desplazamiento funcione también con teclado.
+        <div
+          key={modulo}
+          className={estilos.contenedorTabla}
+          role="region"
+          aria-label={`Calificaciones de ${modulo}`}
+          tabIndex={0}
+        >
+          <table className={estilos.tablaCalificaciones}>
+            <caption>{modulo}</caption>
+            <thead>
+              <tr>
+                <th scope="col">Unidad formativa</th>
+                <th scope="col">Tarea</th>
+                <th scope="col">Estado</th>
+                <th scope="col">Calificación</th>
+                <th scope="col">Observaciones</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filas.map((fila) => (
+                <tr key={fila.entregaId}>
+                  <td>{fila.unidadFormativaNombre}</td>
+                  <td>{fila.tareaTitulo}</td>
+                  <td>{fila.estado}</td>
+                  <td>{fila.evaluacion?.calificacion ?? '—'}</td>
+                  <td>{fila.evaluacion?.observaciones ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ))}
       {grupos.size === 0 && <p>Todavía no tienes entregas registradas.</p>}
     </main>

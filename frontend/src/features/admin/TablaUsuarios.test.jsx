@@ -11,6 +11,13 @@ describe('TablaUsuarios (HU-05)', () => {
     expect(screen.getByText('docente1@gestorfp.test')).toBeInTheDocument()
   })
 
+  it('envuelve la tabla en una región desplazable accesible por teclado (TC.16)', async () => {
+    await renderAutenticado(<TablaUsuarios />, { rol: 'ADMINISTRADOR' })
+    const region = await screen.findByRole('region', { name: 'Listado de usuarios' })
+    expect(region).toHaveAttribute('tabindex', '0')
+    expect(region).toContainElement(screen.getByRole('table'))
+  })
+
   it('crea un usuario y lo añade a la tabla', async () => {
     const usuario = userEvent.setup()
     await renderAutenticado(<TablaUsuarios />, { rol: 'ADMINISTRADOR' })

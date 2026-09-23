@@ -61,6 +61,16 @@
   color: var(--color-aviso);
 }
 
+.contenedorTabla {
+  overflow-x: auto;
+  margin-bottom: var(--espacio-md);
+}
+
+.contenedorTabla:focus-visible {
+  outline: 2px solid var(--color-foco);
+  outline-offset: 2px;
+}
+
 .tablaCalificaciones {
   width: 100%;
   border-collapse: collapse;

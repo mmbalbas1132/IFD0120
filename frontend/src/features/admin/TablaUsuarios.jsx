@@ -43,7 +43,11 @@ export default function TablaUsuarios() {
       <h1 className="mb-4 text-2xl font-bold text-slate-900">Usuarios</h1>
 
       {errorGeneral && (
-        <div role="alert" aria-live="polite" className="mb-4 rounded border border-red-600 bg-red-50 p-3 text-red-700">
+        <div
+          role="alert"
+          aria-live="polite"
+          className="mb-4 rounded border border-red-600 bg-red-50 p-3 text-red-700"
+        >
           {errorGeneral}
         </div>
       )}
@@ -115,7 +119,13 @@ export default function TablaUsuarios() {
         </button>
       </form>
 
-      <div className="overflow-x-auto">
+      {/* TC.16: región enfocable para poder desplazar la tabla con teclado en móvil. */}
+      <div
+        className="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+        role="region"
+        aria-label="Listado de usuarios"
+        tabIndex={0}
+      >
         <table className="w-full border-collapse text-left">
           <thead>
             <tr className="border-b border-slate-300">

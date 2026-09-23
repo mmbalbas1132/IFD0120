@@ -27,13 +27,17 @@
 | [X] TC.18 | README del módulo: cómo arrancar con MSW, cómo se desactivará en `003-implantacion` | `frontend/README.md` revisado, incluye variable `VITE_API_BASE_URL` | S | TC.4 | `frontend/README.md` | — |
 | [X] TC.19 | Excluir MSW y sus fixtures (credenciales simuladas) del build de producción: el mock solo arranca con `import.meta.env.MODE === 'development'` y sin `VITE_API_BASE_URL` | Prueba automatizada ejecuta `vite build` y falla si el bundle contiene código de `src/mocks/`, `mockServiceWorker` o la contraseña simulada | S | TC.4 | `src/main.jsx`, `tests/buildProduccion.test.js` | RNF-002, ADR-0002 |
 
-> **TC.16 — estado parcial (2026-09-23):** el CSS mobile-first (breakpoints 480/768/1024px) está
-> implementado en cada `*.module.css` y se verificó manualmente en un navegador real durante el
-> desarrollo (login, las 9 HU, formularios de error) sin scroll horizontal ni solapes visibles.
-> No se pudieron adjuntar capturas en los 3 breakpoints exactos porque la herramienta de
-> automatización de navegador usada en esta sesión no propagó el resize de ventana al viewport de
-> la pestaña (limitación de la herramienta, no del código). **Pendiente:** una pasada manual con
-> capturas reales en 480/768/1024px antes de cerrar el PR — ver `frontend/README.md`.
+> **TC.16 — estado (2026-09-23):** capturas generadas con Playwright + Chrome a viewport exacto
+> de 480, 768 y 1024px (ancho × 900px, página completa) de las 12 rutas (panel público, login,
+> 3 de alumno, 4 de docente, 3 de admin): 36 capturas. En cada una se midió
+> `scrollWidth` frente al ancho del viewport y se revisaron visualmente en busca de solapes.
+> Resultado de la primera pasada: `/alumno/calificaciones` tenía scroll horizontal a 480px (tabla
+> de 543px); corregido envolviendo la tabla en un contenedor `overflow-x: auto`, que además es
+> una región con nombre y enfocable para desplazarla con teclado (lo mismo en `TablaUsuarios`, que
+> ya desplazaba la tabla pero sin foco de teclado). Tras la corrección: 0 páginas con scroll
+> horizontal y sin solapes en los 3 breakpoints. **Pendiente para marcarla como hecha:** adjuntar
+> las 36 capturas al PR de `feature/001-entorno-cliente` → `develop` (el criterio Done exige
+> que vayan adjuntas al PR, que todavía no existe).
 
 ## Cierre del módulo
 
@@ -54,4 +58,5 @@ Antes de abrir el PR de `feature/001-entorno-cliente` → `develop`:
       simulado fielmente según `docs/adr/0002-seguridad-sesion-y-datos.md` y verificado en
       navegador real: recarga de página recupera la sesión vía `/auth/refresh` sin pedir
       credenciales, logout revoca la sesión (TC.6, TC.7, TC.7b).
-- [ ] TC.16 pendiente de cierre formal (ver nota arriba): capturas manuales en los 3 breakpoints.
+- [ ] TC.16 pendiente de cierre formal (ver nota arriba): capturas hechas y verificadas; falta
+      adjuntarlas al PR.

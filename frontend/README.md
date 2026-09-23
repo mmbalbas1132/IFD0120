@@ -87,9 +87,8 @@ escrita fuera de `features/admin` no se compila.
   de `003-implantacion` (axe-core dentro de Playwright, navegador real) es la verificación
   definitiva de contraste.
 - **Responsive (TC.16):** los 3 breakpoints (480/768/1024px) están implementados con CSS
-  mobile-first en cada `*.module.css` (ver comentarios `@media` en cada uno) y se verificaron
-  manualmente en un navegador real durante el desarrollo, pero no se pudieron adjuntar capturas
-  automatizadas por una limitación de la herramienta de automatización de navegador usada en esta
-  sesión (el resize de ventana no se propagó al viewport de la pestaña). Pendiente una pasada
-  manual con capturas reales antes de cerrar el PR, tal y como exige el checklist de cierre del
-  módulo.
+  mobile-first en cada `*.module.css` (ver comentarios `@media` en cada uno). Verificados con 36
+  capturas a viewport exacto (12 rutas × 3 anchos, Playwright + Chrome): sin scroll horizontal
+  ni solapes. Las tablas anchas se desplazan dentro de su propio contenedor enfocable, no la
+  página. Las capturas se adjuntan al PR de cierre del módulo (ver nota de TC.16 en
+  `specs/001-entorno-cliente/tasks.md`).

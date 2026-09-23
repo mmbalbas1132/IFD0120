@@ -40,5 +40,11 @@ module.exports = {
     'react/prop-types': 'off',
     'tailwindcss/classnames-order': 'warn',
     'tailwindcss/no-contradicting-classname': 'error',
+    // Una región desplazable (tabla ancha en móvil, TC.16) debe ser enfocable para poder
+    // desplazarla con teclado (WCAG 2.1.1; regla axe `scrollable-region-focusable`).
+    'jsx-a11y/no-noninteractive-tabindex': [
+      'error',
+      { tags: [], roles: ['tabpanel', 'region'], allowExpressionValues: true },
+    ],
   },
 }
