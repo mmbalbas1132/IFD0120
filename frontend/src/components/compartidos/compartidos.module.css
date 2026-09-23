@@ -1,0 +1,94 @@
+/* Vocabulario visual común (botones, inputs, alertas) — CSS3 a mano, sin Tailwind
+   (plan.md §5, regla 2): se usa en todas las áreas, incluida admin. */
+
+.boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espacio-sm);
+  padding: 0.6rem 1.1rem;
+  border-radius: var(--radio-borde);
+  border: 1px solid transparent;
+  font-weight: 600;
+  cursor: pointer;
+  background-color: var(--color-primario);
+  color: var(--color-texto-inverso);
+}
+
+.boton:hover:not(:disabled) {
+  background-color: var(--color-primario-hover);
+}
+
+.boton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.botonSecundario {
+  composes: boton;
+  background-color: transparent;
+  color: var(--color-primario);
+  border-color: var(--color-primario);
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: var(--espacio-md);
+}
+
+.etiqueta {
+  font-weight: 600;
+}
+
+.entrada {
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-borde);
+  background-color: var(--color-fondo);
+  color: var(--color-texto);
+}
+
+.entrada:focus-visible {
+  outline: 3px solid var(--color-foco);
+  outline-offset: 1px;
+}
+
+.entradaConError {
+  composes: entrada;
+  border-color: var(--color-error);
+}
+
+.mensajeError {
+  color: var(--color-error);
+  font-size: var(--tamano-pequeno);
+}
+
+.alerta {
+  padding: var(--espacio-sm) var(--espacio-md);
+  border-radius: var(--radio-borde);
+  border: 1px solid transparent;
+  margin-bottom: var(--espacio-md);
+}
+
+.alertaError {
+  composes: alerta;
+  background-color: var(--color-error-fondo);
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+.alertaExito {
+  composes: alerta;
+  background-color: var(--color-exito-fondo);
+  border-color: var(--color-exito);
+  color: var(--color-exito);
+}
+
+.alertaAviso {
+  composes: alerta;
+  background-color: var(--color-aviso-fondo);
+  border-color: var(--color-aviso);
+  color: var(--color-aviso);
+}

@@ -1,0 +1,71 @@
+/* Reset ligero + tipografía base. Mobile-first (RNF-005): estilos base pensados para <480px,
+   ampliados con min-width en cada CSS Module según haga falta. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--fuente-base);
+  font-size: var(--tamano-base);
+  line-height: var(--interlineado-base);
+  color: var(--color-texto);
+  background-color: var(--color-fondo);
+}
+
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  line-height: 1.2;
+  margin: 0 0 var(--espacio-md) 0;
+}
+
+a {
+  color: var(--color-primario);
+}
+
+/* Foco visible en todo el proyecto (RNF-005, Principio 4): nunca se elimina el outline sin
+   sustituirlo por una alternativa igual de visible. */
+:focus-visible {
+  outline: 3px solid var(--color-foco);
+  outline-offset: 2px;
+}
+
+.visualmente-oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

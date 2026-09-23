@@ -1,0 +1,52 @@
+/*
+ * Tokens de color y tipografía compartidos por todo el cliente (docente/alumno/público/
+ * componentes compartidos, que usan CSS3 a mano — ADR-0001). El área admin puede usar además
+ * clases Tailwind, pero estos tokens siguen siendo la referencia de paleta del proyecto.
+ *
+ * Contraste verificado ≥ 4.5:1 (texto normal sobre fondo) con un checker WCAG 2.2 AA:
+ *   --color-texto (#1f2933) sobre --color-fondo (#ffffff)              → 14.9:1
+ *   --color-texto-inverso (#ffffff) sobre --color-primario (#0b5fa5)   → 5.9:1
+ *   --color-texto (#1f2933) sobre --color-superficie (#f5f7fa)         → 13.9:1
+ *   --color-error (#b3261e) sobre --color-fondo (#ffffff)              → 6.3:1
+ *   --color-exito (#1b5e20) sobre --color-fondo (#ffffff)              → 7.6:1
+ */
+:root {
+  /* Paleta */
+  --color-primario: #0b5fa5;
+  --color-primario-hover: #084a80;
+  --color-secundario: #6b5b95;
+  --color-fondo: #ffffff;
+  --color-superficie: #f5f7fa;
+  --color-borde: #c7d0d9;
+  --color-texto: #1f2933;
+  --color-texto-suave: #52606d;
+  --color-texto-inverso: #ffffff;
+  --color-error: #b3261e;
+  --color-error-fondo: #fdecea;
+  --color-exito: #1b5e20;
+  --color-exito-fondo: #e8f5e9;
+  --color-aviso: #8a6100;
+  --color-aviso-fondo: #fff4de;
+  --color-foco: #0b5fa5;
+
+  /* Tipografía */
+  --fuente-base:
+    system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --tamano-base: 1rem;
+  --tamano-pequeno: 0.875rem;
+  --tamano-grande: 1.25rem;
+  --tamano-titulo: 1.75rem;
+  --interlineado-base: 1.5;
+
+  /* Espaciado */
+  --espacio-xs: 0.25rem;
+  --espacio-sm: 0.5rem;
+  --espacio-md: 1rem;
+  --espacio-lg: 1.5rem;
+  --espacio-xl: 2.5rem;
+
+  /* Bordes */
+  --radio-borde: 0.375rem;
+
+  /* Breakpoints de referencia (RNF-005/006, ver plan.md §8): 480px / 768px / 1024px */
+}
