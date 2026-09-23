@@ -82,10 +82,6 @@ escrita fuera de `features/admin` no se compila.
   contrato real: si el servidor real no expone esos campos embebidos, `modulosApi.js` y las
   páginas que los consumen (`ListaTareas`, `FormularioTarea`, `FormularioRecurso`,
   `FormularioModulo`, `GestionMatriculas`) necesitarán ajustarse.
-- **Contraseña inicial de un usuario nuevo:** `POST /usuarios` (§12) no define contraseña, así que
-  un usuario recién creado en el mock no puede entrar hasta que el ADMINISTRADOR le restablezca la
-  contraseña (RF-017), que le da una temporal. Pendiente de decidir en la spec maestra si el alta
-  debe generar ya esa temporal.
 - **Subidas en las pruebas (jsdom):** `tests/setup.js` sustituye `FormData`/`File`/`Blob` de jsdom
   por los nativos de Node, porque el `fetch` de Node no sabe enviar los de jsdom como
   `multipart/form-data`. En el navegador real no hace falta; los flujos de subida y descarga se han

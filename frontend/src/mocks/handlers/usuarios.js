@@ -85,11 +85,14 @@ export const usuariosHandlers = [
       email,
       rol,
       activo: true,
-      debeCambiarPassword: false,
+      debeCambiarPassword: true,
       fechaAlta: new Date().toISOString().slice(0, 10),
     }
+    // RF-008: el alta genera una contraseña temporal, que se devuelve una sola vez (como RF-017).
+    const passwordTemporal = generarPasswordTemporal()
     db.usuarios.push(nuevo)
-    return HttpResponse.json(serializarUsuario(nuevo), { status: 201 })
+    db.credenciales.set(nuevo.id, passwordTemporal)
+    return HttpResponse.json({ ...serializarUsuario(nuevo), passwordTemporal }, { status: 201 })
   }),
 
   http.get(`${BASE}/usuarios/:id`, ({ request, params }) => {

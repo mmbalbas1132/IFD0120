@@ -31,7 +31,9 @@ export default function TablaUsuarios() {
   async function alEnviar(datos) {
     setErrorGeneral(null)
     try {
-      await crearUsuario(datos)
+      // RF-008: el alta devuelve la contraseña temporal una sola vez, como el restablecimiento.
+      const { passwordTemporal: valor, ...creado } = await crearUsuario(datos)
+      setPasswordTemporal({ usuario: creado, valor })
       reset({ rol: 'ALUMNO' })
       recargar()
     } catch (error) {

@@ -8,7 +8,8 @@ v1.2 — medidas de seguridad concretas para RNF-002/003, nuevos RNF-011/012/013
 `memory/constitution.md` v3.0.0 tras `docs/adr/0003-constitucion-agnostica-tecnologia.md`; v1.4
 (2026-09-23) — clarificaciones: adjuntos (RNF-014), reemplazo de entregas, historial de
 calificaciones (RF-016) y restablecimiento y cambio de contraseña (RF-017/018) y contrato de
-subida de ficheros en §12, cierran CA-01, CA-02 y CA-06)
+subida de ficheros en §12, cierran CA-01, CA-02 y CA-06; v1.5 (2026-09-23) — contraseña
+temporal en el alta de usuario, RF-008)
 **Rige bajo:** `memory/constitution.md` v3.0.0
 **Certificado de referencia:** IFCD0210 — Desarrollo de aplicaciones con tecnologías web
 
@@ -54,6 +55,7 @@ una decisión de stack que matiza esta trazabilidad en el entorno cliente.
 - Q: ¿Cuántos ficheros admite cada entrega, tarea o recurso en v1.0? → A: Uno por elemento; varios ficheros se agrupan en un ZIP (RNF-014).
 - Q: Al restablecer una contraseña, ¿quién genera la contraseña temporal? → A: La genera el servidor (aleatoria) y la devuelve una sola vez en la respuesta (RF-017).
 - Q: ¿Qué reglas debe cumplir una contraseña nueva al cambiarla? → A: Mínimo 8 caracteres, con al menos una mayúscula, un número y un símbolo, y distinta de la actual (RF-018).
+- Q: ¿Qué contraseña recibe un usuario al crearlo con `POST /usuarios`? → A: El servidor genera una contraseña temporal, la devuelve una sola vez en la respuesta del alta y obliga a cambiarla en el primer acceso, igual que en el restablecimiento (RF-008, RF-017).
 
 ## 2. Objetivos
 
@@ -241,6 +243,12 @@ Característica: Administración del ciclo
     Cuando intento crear un módulo con código "MF0492_3" ya existente
     Entonces el sistema muestra el error "Ya existe un módulo con ese código"
 
+  Escenario: Dar de alta un usuario con contraseña temporal
+    Dado que estoy autenticado como ADMINISTRADOR
+    Cuando creo el usuario "nuevo.alumno@gestorfp.test" con rol "ALUMNO"
+    Entonces veo una única vez la contraseña temporal generada para ese usuario
+    Y el usuario tiene que cambiarla en su primer acceso antes de hacer nada más
+
   Escenario: Restablecer la contraseña de un usuario que la ha olvidado
     Dado que estoy autenticado como ADMINISTRADOR
     Cuando restablezco la contraseña del usuario "alumno1@gestorfp.test" con una contraseña temporal
@@ -324,7 +332,7 @@ Característica: Accesibilidad
 | RF-005 | El sistema permite a un DOCENTE registrar una calificación numérica (0–10, hasta un decimal) y observaciones textuales para una entrega de su módulo. | UC0492_3, UC0493_3 |
 | RF-006 | El sistema rechaza calificaciones fuera del rango 0–10 con un mensaje de error explícito, tanto en cliente como en servidor. | UC0491_3, UC0492_3 |
 | RF-007 | El sistema permite a un ALUMNO consultar únicamente sus propias entregas y calificaciones, agrupadas por módulo y unidad formativa. | UC0492_3, UC0493_3 |
-| RF-008 | El sistema permite a un ADMINISTRADOR crear, editar y dar de baja (lógica) usuarios, asignándoles un rol (ADMINISTRADOR, DOCENTE, ALUMNO). | UC0492_3 |
+| RF-008 | El sistema permite a un ADMINISTRADOR crear, editar y dar de baja (lógica) usuarios, asignándoles un rol (ADMINISTRADOR, DOCENTE, ALUMNO). Al crear un usuario, el servidor le genera una contraseña temporal con las mismas reglas que en RF-017: se devuelve una única vez en la respuesta del alta y el usuario debe cambiarla en su primer acceso. | UC0492_3 |
 | RF-009 | El sistema permite a un ADMINISTRADOR crear módulos y sus unidades formativas, con código único, nombre y horas. | UC0492_3 |
 | RF-010 | El sistema permite a un ADMINISTRADOR matricular a un ALUMNO en uno o más módulos y consultar/revocar matriculaciones existentes. | UC0492_3 |
 | RF-011 | El sistema expone una vista pública (sin autenticación) con el listado de módulos, su descripción y horas totales, sin datos personales de alumnado. | UC0491_3, UC0493_3 |
@@ -584,7 +592,7 @@ donde se indique público.
 | POST | `/auth/refresh` | Público (refresh token) | Renueva el JWT | 200 |
 | GET | `/modulos/publicos` | Público | Listado de módulos para el panel de visitante | 200 |
 | GET | `/usuarios` | ADMINISTRADOR | Lista usuarios (paginada) | 200 |
-| POST | `/usuarios` | ADMINISTRADOR | Crea un usuario | 201 |
+| POST | `/usuarios` | ADMINISTRADOR | Crea un usuario; la respuesta incluye una única vez `passwordTemporal` y el usuario queda con `debeCambiarPassword: true` (RF-008, RF-017) | 201 |
 | GET | `/usuarios/{id}` | ADMINISTRADOR, propio usuario | Detalle de usuario | 200 |
 | PUT | `/usuarios/{id}` | ADMINISTRADOR, propio usuario | Edita usuario | 200 |
 | DELETE | `/usuarios/{id}` | ADMINISTRADOR | Baja lógica de usuario | 204 |

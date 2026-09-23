@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { login } from '../../api/authApi.js'
 import { fijarAccessToken } from '../../api/httpClient.js'
 import { listarTareasDeUnidad } from '../../api/tareasApi.js'
-import { cambiarPassword, restablecerPassword } from '../../api/usuariosApi.js'
+import { cambiarPassword, crearUsuario, restablecerPassword } from '../../api/usuariosApi.js'
 import { validarPasswordNueva } from '../../utils/password.js'
 import { autenticarComo } from '../../../tests/utils.jsx'
 
@@ -13,6 +13,25 @@ async function entrarCon(email, password) {
 }
 
 describe('restablecimiento y cambio de contraseña en el mock (RF-017, RF-018)', () => {
+  it('el alta de usuario devuelve una temporal y obliga a cambiarla al entrar (RF-008, TC.24)', async () => {
+    await autenticarComo('ADMINISTRADOR')
+    const creado = await crearUsuario({
+      nombre: 'Nuevo',
+      apellidos: 'Alumno',
+      email: 'nuevo.alumno@gestorfp.test',
+      rol: 'ALUMNO',
+    })
+    expect(validarPasswordNueva(creado.passwordTemporal)).toBeNull()
+    expect(creado.debeCambiarPassword).toBe(true)
+
+    const usuario = await entrarCon('nuevo.alumno@gestorfp.test', creado.passwordTemporal)
+    expect(usuario.debeCambiarPassword).toBe(true)
+    await expect(listarTareasDeUnidad('uf-1')).rejects.toMatchObject({
+      status: 403,
+      error: 'CAMBIO_PASSWORD_REQUERIDO',
+    })
+  })
+
   it('genera una temporal que cumple RF-018 y obliga a cambiarla (TC.23)', async () => {
     await autenticarComo('ADMINISTRADOR')
     const { passwordTemporal } = await restablecerPassword('u-alumno-1')
