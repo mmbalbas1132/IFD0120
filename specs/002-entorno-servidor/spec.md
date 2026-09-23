@@ -17,7 +17,7 @@
 ## User Scenarios & Testing *(mandatory)*
 
 Este módulo implementa la lógica de negocio real (persistencia, autenticación, autorización) que
-satisface los 23 endpoints del contrato de `specs/000-funcional/spec.md` §12, ya consumidos
+satisface los 37 endpoints del contrato de `specs/000-funcional/spec.md` §12 (v1.8), ya consumidos
 simulados por `001-entorno-cliente`. Las 9 HU (`spec.md` §5) son las mismas que en el módulo
 cliente — este módulo las hace reales en vez de mockeadas; no introduce HU nuevas.
 
@@ -31,29 +31,35 @@ de seguridad del Principio 5 (replay de tokens, fuerza bruta, propiedad de recur
 
 ### Functional Requirements
 
-Este módulo cubre la parte servidor de: **RF-001, RF-003, RF-004, RF-005, RF-006, RF-007, RF-008,
-RF-009, RF-010, RF-012, RF-013, RF-014, RF-015** y las no funcionales de seguridad **RNF-002,
-RNF-003, RNF-011, RNF-012, RNF-013** (ver `specs/000-funcional/spec.md` §6, §7 y la tabla de
-trazabilidad §10, fila UC0492_3).
+Este módulo cubre la parte servidor de **RF-001 a RF-019** (todas; RF-002, RF-006, RF-011, RF-018
+y RF-019 también tienen parte cliente, ya hecha en `001`) y de las no funcionales **RNF-002,
+RNF-003, RNF-007, RNF-008, RNF-009, RNF-010, RNF-011, RNF-012, RNF-013 y RNF-014** (ver
+`specs/000-funcional/spec.md` §6, §7 y la tabla de trazabilidad §10, fila UC0492_3). RNF-001
+(rendimiento) se mide en `003-implantacion`.
 
 ### Key Entities
 
-Implementa la persistencia real de las 9 entidades del modelo conceptual de
-`specs/000-funcional/spec.md` §8, más la tabla `tokens_revocados` (Principio 5 / ADR-0002, no es
-parte del modelo de negocio sino del mecanismo de seguridad) — ver
-`specs/002-entorno-servidor/plan.md` §5.
+Implementa la persistencia real de las 12 entidades del modelo conceptual de
+`specs/000-funcional/spec.md` §8 (incluidas `Ciclo`, `HistorialEvaluacion` y `Adjunto`), más las
+tablas `sesiones_refresco` y `tokens_revocados` (Principio 5 / ADR-0002, no son parte del modelo de
+negocio sino del mecanismo de sesión) — ver `specs/002-entorno-servidor/plan.md` §5.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-Ver Definition of Done de `specs/002-entorno-servidor/plan.md` §9: los 23 endpoints de §12
-implementados y probados; cobertura `service` ≥ 70% (JaCoCo); `/swagger-ui.html` navegable;
-contrato verificado contra §12 sin discrepancias; TS.27–TS.33 (seguridad) probadas.
+Ver Definition of Done de `specs/002-entorno-servidor/plan.md` §9: los 37 endpoints de §12
+implementados y probados; CI en verde con cobertura `service` ≥ 70% (JaCoCo) y Javadoc
+verificado; `/swagger-ui.html` navegable; contrato y forma de los cuerpos verificados contra §12 y
+el mock de `001` sin discrepancias; TS.27–TS.33, TS.35, TS.40 y TS.42 (seguridad) probadas.
 
 ## Assumptions
 
 - El contrato de API de `specs/000-funcional/spec.md` §12 no cambia durante el desarrollo de este
   módulo sin pasar primero por una actualización de la spec maestra (Principio 1).
-- CA-01 (almacenamiento de ficheros) sigue abierta — la tarea TS.26 queda explícitamente bloqueada,
-  no se inventa una solución.
+- CA-01 (almacenamiento de ficheros) está **resuelta** desde la spec v1.4 (RNF-014): TS.26 y TS.43
+  no están bloqueadas.
+- CA-05 (base legal y retención RGPD) sigue parcialmente abierta: TS.33 construye la
+  anonimización como mecanismo manual y no decide cuándo se aplica.
+- CA-08 (infraestructura de `prod`) no bloquea este módulo; solo condiciona si el rate limiter en
+  memoria (TS.30) deberá compartir contadores en `003`.

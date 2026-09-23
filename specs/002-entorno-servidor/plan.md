@@ -7,7 +7,9 @@
 **Unidad de competencia:** UC0492_3 — Desarrollar elementos software en el entorno servidor
 **Fecha:** 2026-09-22 · revisado 2026-09-23 contra `spec.md` v1.7 (hallazgos CRITICAL/HIGH de
 `/speckit-analyze`: CSRF, contraseñas, historial, `fueraDePlazo`, zona horaria, baja inmediata,
-adjuntos, ciclo, edición/borrado, matrícula en baja, Javadoc)
+adjuntos, ciclo, edición/borrado, matrícula en baja, Javadoc) · revisado de nuevo 2026-09-23
+contra `spec.md` v1.8 (segundo `/speckit-analyze`: CI, CORS y cabeceras, edición de uno mismo,
+matrículas en `GET /modulos`, logout en §12, conformidad de los cuerpos)
 
 > Este módulo implementa el backend real que satisface exactamente el contrato de
 > `spec.md` §12 — el mismo que `001-entorno-cliente` ya consumió simulado con MSW. No se cambia el
@@ -35,7 +37,8 @@ integración cliente-servidor real, despliegue a producción, pruebas E2E cruzad
 | ORM / acceso a datos | Spring Data JPA + Hibernate | Mapea UF1845 (modelo lógico → físico) reduciendo SQL repetitivo sin perder control fino (`@Query` nativo cuando hace falta). |
 | Migraciones | Flyway | Esquema versionado junto al código (Constitución Principio 7). |
 | Autenticación | Spring Security + JWT (jjwt) | Stateless, escalable horizontalmente. |
-| Documentación de API | springdoc-openapi (Swagger UI) | Generada desde el propio código (Principio 7); se valida contra el contrato de `spec.md` §12 en CI (ver §7). |
+| Documentación de API | springdoc-openapi (Swagger UI) | Generada desde el propio código (Principio 7); el build exporta el OpenAPI y se compara con el contrato de `spec.md` §12 antes de cerrar el módulo (ver §7). |
+| Integración continua | GitHub Actions (`.github/workflows/ci.yml`) | Los Principios 6 y 7 exigen que la cobertura y el Javadoc bloqueen el merge; eso necesita un pipeline que `002` crea (TS.41) y `003` amplía con E2E, accesibilidad y rendimiento (TI.16). Actions va integrado en el repositorio de GitHub, sin servicio aparte. |
 | Pruebas | JUnit 5, Mockito, Testcontainers, JaCoCo | Estándar del ecosistema Spring; Testcontainers para integración contra PostgreSQL real. |
 | Tipo real de los adjuntos | Apache Tika (`tika-core`) | RNF-014 exige comprobar el tipo por el **contenido**, no por la extensión ni por el `Content-Type` que declara el cliente. `tika-core` detecta el tipo por la firma de los primeros bytes, sin dependencias nativas ni servicio externo. |
 | Javadoc obligatorio | Maven Checkstyle Plugin (regla `MissingJavadocType`) | La constitución (Principio 7) exige Javadoc en las clases públicas de `service` y `controller`; la regla lo comprueba en `mvn verify` y hace fallar el build si falta, en lugar de depender de una revisión manual. |
@@ -52,7 +55,7 @@ tensión conocida.
 soportado por JPA/Flyway, con migración de tipos `UUID`/`JSONB`), librería JWT (`jjwt` → otra
 implementación de JWT), Testcontainers → otro mecanismo de BD efímera para pruebas, `tika-core` →
 otro detector de tipo por firma (queda detrás de `DetectorTipoFichero`), Checkstyle → otra
-herramienta de análisis estático. Estructural —
+herramienta de análisis estático, GitHub Actions → otro servicio de CI que ejecute `mvn verify`. Estructural —
 Java + Spring Boot como framework base (toda la arquitectura de capas, `@PreAuthorize`, Spring Data
 JPA y los filtros de seguridad del §6 asumen Spring); Spring Data JPA como capa de acceso a datos
 (cambiarlo implica reescribir `repository/` y `domain/` enteros, no un PR aislado).
@@ -86,6 +89,7 @@ flowchart TB
 ## 4. Estructura de carpetas
 
 ```
+.github/workflows/ci.yml       # TS.41: mvn verify (backend) + lint y pruebas del frontend
 backend/
 ├── pom.xml
 ├── Dockerfile
@@ -119,7 +123,12 @@ backend/
 ## 5. Esquema de base de datos
 
 Deriva del modelo conceptual de `spec.md` §8. Claves primarias `UUID`. Índices sobre claves
-foráneas y sobre columnas con restricción de unicidad.
+foráneas y sobre columnas con restricción de unicidad. **Auditoría (RF-015):** las tablas de las
+entidades principales (`usuarios`, `ciclo`, `modulos`, `unidades_formativas`, `matriculas`,
+`tareas`, `entregas`, `evaluaciones`, `recursos`, `anuncios`) llevan `fecha_creacion` y
+`fecha_modificacion` (`TIMESTAMPTZ NOT NULL`), que rellena `Auditable` (`@EntityListeners`). No las
+llevan `adjuntos` (ya tiene `fecha_subida` y no se modifica), `historial_evaluaciones` (solo
+inserción, ya tiene `fecha_cambio`) ni las tablas de sesión.
 
 | Tabla | Índices relevantes | Notas |
 |---|---|---|
@@ -192,8 +201,10 @@ y `debe_cambiar_password = false`.
 > `docs/adr/0002-seguridad-sesion-y-datos.md`.
 
 - `POST /auth/login` comprueba el email y la contraseña contra el hash guardado en `usuarios`
-  (BCrypt, coste ≥ 10). Está limitado por **Bucket4j** con clave compuesta IP+usuario (`429` a
-  partir de 5 intentos fallidos en 15 min), sin Redis: los contadores viven en la memoria de cada
+  (BCrypt, coste ≥ 10). Está limitado por **Bucket4j** con clave compuesta IP+usuario (RNF-011
+  v1.8: se admiten 5 intentos fallidos en 15 min y el 6.º recibe `429` con `Retry-After`, aunque
+  la contraseña sea correcta). Es el único endpoint limitado: `/auth/refresh` no recibe contraseña
+  y su token no se puede adivinar. Sin Redis: los contadores viven en la memoria de cada
   instancia. Con una sola instancia (el despliegue previsto) el límite es exacto; si algún día hay
   varias, cada una contaría por su lado y habría que compartir los contadores, decisión que
   corresponde a `003-implantacion` (CA-08).
@@ -211,7 +222,8 @@ y `debe_cambiar_password = false`.
   de `jti`) y renueva la cookie `refresh_token`. La respuesta incluye `debeCambiarPassword`, igual
   que el login (RF-017).
 - `POST /auth/logout` inserta el `jti` del access token vigente en `tokens_revocados`, marca como
-  revocada su sesión de `sesiones_refresco` y borra ambas cookies (`Max-Age=0`).
+  revocada su sesión de `sesiones_refresco`, borra ambas cookies (`Max-Age=0`) y responde `204`
+  (§12 v1.8).
 - **Filtro de replay:** un `OncePerRequestFilter` de Spring Security, tras validar la firma y
   expiración del JWT, comprueba que su `jti` **no** esté en `tokens_revocados` antes de dejar pasar
   la petición; si está, `401`.
@@ -247,15 +259,24 @@ y `debe_cambiar_password = false`.
   el DOCENTE, los módulos de los que es `docente_responsable_id`; el ALUMNO, los módulos donde tiene
   matrícula `ACTIVA`. Con la matrícula en `BAJA`, el alumno recibe `403` en tareas, recursos,
   anuncios y al entregar, pero **conserva** el acceso a sus propias entregas y calificaciones de ese
-  módulo y a la descarga de los ficheros que él entregó.
+  módulo y a la descarga de los ficheros que él entregó. `GET /modulos` usa este mismo servicio
+  para decidir qué módulos devuelve a cada rol, e incluye las `matriculas` `ACTIVA` solo si quien
+  consulta es ADMINISTRADOR (RF-010 v1.8): a DOCENTE y ALUMNO no se les exponen datos del alumnado
+  matriculado. Matricular a un usuario que no es ALUMNO o no está activo responde `400`, y el
+  listado `sinEntregar` (RF-005) excluye a los usuarios con `activo = false`.
+- **Edición de uno mismo (RF-008 v1.8):** en `PUT /usuarios/{id}`, si quien edita no es
+  ADMINISTRADOR, `UsuarioService` copia solo `nombre` y `apellidos` del DTO e ignora el resto
+  (`rol`, `email`, `activo`, `debeCambiarPassword`). Se hace en el servicio, no confiando en que el
+  cliente no envíe esos campos, para cerrar la escalada de privilegios.
 - **Historial de calificaciones (RF-016):** `EvaluacionService` inserta una fila en
   `historial_evaluaciones` en la misma transacción que crea o modifica la evaluación (autor, fecha,
   valores anteriores y nuevos). Solo lo consultan el DOCENTE del módulo y el ADMINISTRADOR.
-- CORS restringido al origen del `frontend` por entorno, con `Access-Control-Allow-Credentials:
-  true` (obligatorio para que el navegador envíe las cookies de sesión entre orígenes en
-  desarrollo).
+- CORS restringido al origen del `frontend` por entorno (propiedad `gestorfp.cors.origenes` en
+  cada `application-*.yml`), con `Access-Control-Allow-Credentials: true` (obligatorio para que el
+  navegador envíe las cookies de sesión entre orígenes en desarrollo). TS.42.
 - Cabeceras de seguridad: CSP, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
-  `Strict-Transport-Security` (activadas en este módulo; endurecidas en `003-implantacion`).
+  `Strict-Transport-Security`, activas en todos los perfiles desde este módulo (Principio 5) y
+  probadas en TS.42; `003-implantacion` las endurece (TI.6), no las introduce.
 - **Protección de datos (RGPD, RNF-013):** sin cifrado de columna (pgcrypto descartado); se asume
   cifrado de disco a nivel de infraestructura de despliegue (`003-implantacion`). El servicio de
   baja lógica de `Usuario` expone un método de anonimización (sustituye
@@ -287,10 +308,20 @@ criterio:
 
 ## 7. Verificación de conformidad con el contrato (§12)
 
-Antes de cerrar este módulo, `docs/openapi-generado.json` (exportado de springdoc en tiempo de
-build) se compara manualmente endpoint por endpoint contra `spec.md` §12: mismos métodos, mismas
-rutas, mismos roles, mismos códigos de éxito. Cualquier discrepancia se resuelve actualizando el
-código para ajustarse al contrato — el contrato no se toca desde este módulo (Principio 1).
+Antes de cerrar este módulo (TS.25) se hacen dos comparaciones manuales, endpoint por endpoint, y
+el resultado queda en `docs/conformidad-contrato.md`:
+
+1. `docs/openapi-generado.json` (exportado de springdoc en tiempo de build) contra `spec.md` §12:
+   mismos métodos, mismas rutas, mismos roles, mismos códigos de éxito.
+2. Los DTO de petición y respuesta contra los handlers de MSW de `001`
+   (`frontend/src/mocks/handlers/`), que §12 v1.8 fija como referencia de la forma de los cuerpos:
+   mismos nombres de campo, mismas estructuras anidadas (p. ej. `{ contenido, totalElementos,
+   pagina, tamano }` o `{ entregas, sinEntregar }`). Sin esta segunda comparación, un DTO con otro
+   nombre de campo pasaría la primera y rompería la integración en `003`.
+
+Cualquier discrepancia se resuelve actualizando el código para ajustarse al contrato — el contrato
+no se toca desde este módulo (Principio 1). Si el mock contradice §12, manda §12 y la discrepancia
+se anota para corregir el mock.
 
 ## 8. Plan de pruebas de este módulo
 
@@ -298,7 +329,9 @@ código para ajustarse al contrato — el contrato no se toca desde este módulo
 |---|---|---|---|
 | Unitarias | JUnit 5 + Mockito | Capa `service` | Cobertura ≥ 70% (JaCoCo) |
 | Integración | `@SpringBootTest` + MockMvc + Testcontainers (PostgreSQL) | Controladores + repositorios | Cada endpoint de §12 con 1 caso de éxito + 1 de error |
-| Contrato | Comparación manual OpenAPI generado vs. `spec.md` §12 | Coherencia API | 0 discrepancias sin justificar |
+| Contrato | Comparación manual OpenAPI generado vs. `spec.md` §12, y DTO vs. handlers de MSW | Coherencia API y forma de los cuerpos | 0 discrepancias sin justificar |
+| Cabeceras y CORS | MockMvc | Cabeceras de seguridad en toda respuesta; *preflight* desde origen permitido y ajeno | Una prueba por cabecera y por caso de CORS |
+| CI | GitHub Actions (TS.41) | `mvn verify` y pruebas del frontend en cada PR | Check obligatorio en `develop` |
 | Seguridad | Revisión manual de RBAC por endpoint | Cada endpoint con rol restringido | Prueba de acceso denegado (403) para cada rol no autorizado |
 | Seguridad (sesión) | MockMvc | CSRF en toda mutación salvo login; baja → `401` inmediato; cambio obligatorio → `403 CAMBIO_PASSWORD_REQUERIDO` | Una prueba por regla, con éxito y rechazo |
 | Fechas | JUnit 5 con `Clock` fijo | Plazo en UTC, igualdad exacta, recálculo al ampliar, `409` al acortar; horario de invierno y de verano | Casos límite cubiertos |
@@ -306,9 +339,11 @@ código para ajustarse al contrato — el contrato no se toca desde este módulo
 
 ## 9. Salida de este módulo (Definition of Done)
 
-- Los 36 endpoints de `spec.md` §12 (v1.7) implementados y probados.
-- Cobertura `service` ≥ 70% en CI.
+- Los 37 endpoints de `spec.md` §12 (v1.8) implementados y probados.
+- CI (`.github/workflows/ci.yml`) en verde y exigido en `develop`, con cobertura `service` ≥ 70%.
 - Javadoc presente en todas las clases públicas de `service` y `controller` (Checkstyle en verde).
 - `/swagger-ui.html` navegable en perfil `dev`.
 - `docker compose up` (backend + PostgreSQL) levanta el sistema con datos de seed.
-- Contrato verificado contra §12 sin discrepancias abiertas.
+- Contrato verificado contra §12 y contra los cuerpos del mock de `001` sin discrepancias abiertas
+  (`docs/conformidad-contrato.md`).
+- Cabeceras de seguridad y CORS activos y probados.
