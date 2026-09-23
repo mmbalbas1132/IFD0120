@@ -5,7 +5,9 @@
 **Fecha:** 2026-09-22 (v1.0) · revisada 2026-09-22 (v1.1 — reestructuración en 3 specs por módulo;
 v1.2 — medidas de seguridad concretas para RNF-002/003, nuevos RNF-011/012/013, ver
 `docs/adr/0002-seguridad-sesion-y-datos.md`; v1.3 — WCAG 2.2 AA en OT-3, alineado con
-`memory/constitution.md` v3.0.0 tras `docs/adr/0003-constitucion-agnostica-tecnologia.md`)
+`memory/constitution.md` v3.0.0 tras `docs/adr/0003-constitucion-agnostica-tecnologia.md`; v1.4
+(2026-09-23) — clarificaciones: adjuntos (RNF-014), reemplazo de entregas, historial de
+calificaciones (RF-016) y restablecimiento de contraseña (RF-017), cierran CA-01, CA-02 y CA-06)
 **Rige bajo:** `memory/constitution.md` v3.0.0
 **Certificado de referencia:** IFCD0210 — Desarrollo de aplicaciones con tecnologías web
 
@@ -38,6 +40,16 @@ las tres unidades de competencia de IFCD0210: desarrollo en entorno cliente (UC0
 en entorno servidor (UC0492_3) e implantación/verificación/documentación (UC0493_3). Ver §11 sobre
 una decisión de stack que matiza esta trazabilidad en el entorno cliente.
 
+## Clarifications
+
+### Session 2026-09-23
+
+- Q: ¿Dónde deben guardarse los ficheros que adjunta el alumnado en sus entregas y el docente en tareas y recursos? (CA-01) → A: Subida real a un volumen persistente del servidor (volumen Docker), servida por la API con control de permisos (RNF-014).
+- Q: ¿Qué tamaño máximo y qué tipos de fichero se aceptan en las subidas? (RNF-014) → A: Máximo 10 MB por fichero; solo PDF, ZIP, PNG, JPG, DOCX y ODT.
+- Q: Si un alumno ya ha entregado una tarea, ¿puede volver a entregarla? (RF-003) → A: Sí, puede reemplazarla mientras no esté calificada (se recalculan fecha, contenido y plazo); ya calificada, se rechaza con `409`.
+- Q: Cuando se modifica una calificación ya registrada, ¿qué debe quedar guardado de ese cambio? (CA-06) → A: Historial de cada cambio (quién, cuándo, nota y observaciones anteriores y nuevas), visible para el docente del módulo y el ADMINISTRADOR (RF-016).
+- Q: Si un usuario olvida su contraseña, ¿cómo recupera el acceso? (CA-02) → A: Sin autoservicio en v1.0: el ADMINISTRADOR asigna una contraseña temporal que el usuario debe cambiar en su siguiente acceso (RF-017).
+
 ## 2. Objetivos
 
 ### 2.1 Objetivos de negocio
@@ -63,7 +75,8 @@ una decisión de stack que matiza esta trazabilidad en el entorno cliente.
 
 ### 3.1 Dentro del alcance (v1.0)
 
-- Gestión de usuarios y roles (alta, edición, baja lógica, cambio de contraseña).
+- Gestión de usuarios y roles (alta, edición, baja lógica, cambio de contraseña, restablecimiento de
+  contraseña por el ADMINISTRADOR).
 - Gestión de módulos y unidades formativas de un único ciclo formativo.
 - Matriculación de alumnado en módulos.
 - Publicación de tareas (con fecha límite y adjuntos) por unidad formativa.
@@ -87,6 +100,8 @@ una decisión de stack que matiza esta trazabilidad en el entorno cliente.
 - Aplicación móvil nativa (la web es responsive, pero no hay app iOS/Android).
 - Multi-tenant (gestión de varios centros o ciclos simultáneos).
 - Internacionalización (i18n): la aplicación se entrega únicamente en español.
+- Recuperación de contraseña por autoservicio ("olvidé mi contraseña" por correo): en v1.0 la
+  recupera el ADMINISTRADOR (RF-017), sin servidor de correo.
 - **Módulo MP0391** (Prácticas Profesionales No Laborales, 80h) del certificado: es una estancia
   formativa en empresa (comportamiento, integración, PRL); no tiene contenido de desarrollo
   software y por tanto no genera ningún requisito funcional en esta aplicación. Se menciona aquí
@@ -150,6 +165,18 @@ Característica: Entrega de tareas
     Cuando confirmo la entrega el "2026-10-16"
     Entonces la entrega se guarda con estado "ENTREGADA_FUERA_DE_PLAZO"
     Y el docente ve claramente marcada la entrega como fuera de plazo
+
+  Escenario: Reemplazar una entrega todavía no calificada
+    Dado que ya entregué la tarea el "2026-10-10" y no está calificada
+    Cuando vuelvo a entregarla el "2026-10-16"
+    Entonces mi entrega anterior se sustituye por la nueva
+    Y queda con estado "ENTREGADA_FUERA_DE_PLAZO" y fecha "2026-10-16"
+
+  Escenario: Impedir reemplazar una entrega ya calificada
+    Dado que mi entrega de la tarea ya está en estado "CALIFICADA"
+    Cuando intento volver a entregarla
+    Entonces el sistema muestra el error "La entrega ya está calificada y no se puede reemplazar"
+    Y la entrega y su calificación no cambian
 ```
 
 *(RF-003, RF-004)*
@@ -208,9 +235,15 @@ Característica: Administración del ciclo
   Escenario: Impedir el alta de un módulo con código duplicado
     Cuando intento crear un módulo con código "MF0492_3" ya existente
     Entonces el sistema muestra el error "Ya existe un módulo con ese código"
+
+  Escenario: Restablecer la contraseña de un usuario que la ha olvidado
+    Dado que estoy autenticado como ADMINISTRADOR
+    Cuando restablezco la contraseña del usuario "alumno1@gestorfp.test" con una contraseña temporal
+    Entonces ese usuario puede iniciar sesión con la contraseña temporal
+    Pero no puede hacer ninguna otra operación hasta que la cambie por una nueva
 ```
 
-*(RF-008, RF-009, RF-010)*
+*(RF-008, RF-009, RF-010, RF-017)*
 
 ### HU-06 — Consultar información pública del ciclo
 
@@ -281,7 +314,7 @@ Característica: Accesibilidad
 |---|---|---|
 | RF-001 | El sistema permite a un DOCENTE crear una tarea asociada a una unidad formativa de un módulo que imparte, con título, descripción, fecha de publicación, fecha límite y adjuntos opcionales. | UC0492_3, UC0491_3 |
 | RF-002 | El sistema valida que la fecha límite de una tarea sea posterior a la fecha de publicación, tanto en cliente como en servidor. | UC0491_3, UC0492_3 |
-| RF-003 | El sistema permite a un ALUMNO matriculado adjuntar un fichero y/o comentario como entrega de una tarea publicada en un módulo en el que está matriculado. | UC0491_3, UC0492_3 |
+| RF-003 | El sistema permite a un ALUMNO matriculado adjuntar un fichero y/o comentario como entrega de una tarea publicada en un módulo en el que está matriculado. Hay como máximo una entrega por alumno y tarea: mientras no esté calificada, una nueva entrega reemplaza a la anterior (contenido, fecha y estado de plazo se recalculan); una vez calificada, el reemplazo se rechaza con `409`. | UC0491_3, UC0492_3 |
 | RF-004 | El sistema marca automáticamente una entrega como fuera de plazo si su fecha/hora es posterior a la fecha límite de la tarea. | UC0492_3 |
 | RF-005 | El sistema permite a un DOCENTE registrar una calificación numérica (0–10, hasta un decimal) y observaciones textuales para una entrega de su módulo. | UC0492_3, UC0493_3 |
 | RF-006 | El sistema rechaza calificaciones fuera del rango 0–10 con un mensaje de error explícito, tanto en cliente como en servidor. | UC0491_3, UC0492_3 |
@@ -294,6 +327,8 @@ Característica: Accesibilidad
 | RF-013 | El sistema permite a un DOCENTE publicar anuncios a nivel de módulo, con opción de marcarlos como destacados. | UC0492_3 |
 | RF-014 | El sistema autentica usuarios mediante email y contraseña, emitiendo un token JWT con expiración, y autoriza cada operación según el rol del usuario. | UC0492_3, UC0493_3 |
 | RF-015 | El sistema registra en cada entidad principal la fecha de creación y de última modificación (auditoría mínima). | UC0492_3, UC0493_3 |
+| RF-016 | Cada vez que se registra o modifica una calificación, el sistema guarda de forma inmutable (solo inserción, nunca edición ni borrado) quién hizo el cambio, cuándo, y la calificación y observaciones anteriores y nuevas. El historial de una entrega solo lo consultan el DOCENTE del módulo y el ADMINISTRADOR. | UC0492_3 |
+| RF-017 | El sistema permite a un ADMINISTRADOR restablecer la contraseña de un usuario asignándole una contraseña temporal. Hasta que el usuario la sustituya por una nueva, tras iniciar sesión solo puede cambiar su contraseña: cualquier otra operación responde `403`. No hay recuperación por correo en v1.0. | UC0492_3 |
 
 ## 7. Requisitos no funcionales
 
@@ -312,6 +347,7 @@ Característica: Accesibilidad
 | RNF-009 | Documentación | API documentada con OpenAPI accesible en `/swagger-ui.html` en entornos de desarrollo y preproducción. |
 | RNF-010 | Internacionalización | Textos de interfaz y mensajes de validación en español; fechas en formato `dd/mm/aaaa`. |
 | RNF-013 | Protección de datos (RGPD/LOPDGDD) | Cifrado en reposo a **nivel de infraestructura** (disco/volumen cifrado del proveedor + TLS en tránsito), no a nivel de columna — ver ADR-0002 y CA-05. La baja lógica de `Usuario` (RF-008) se acompaña de un mecanismo de **anonimización real** invocable manualmente: sustituye `nombre`, `apellidos` y `email` por valores no identificables conservando `id` y `rol` por integridad referencial de calificaciones/entregas ya emitidas. |
+| RNF-014 | Almacenamiento de adjuntos | Los ficheros adjuntos de Entrega, Tarea y Recurso de tipo DOCUMENTO se **suben de verdad** a la API y se guardan en un volumen persistente del servidor (volumen Docker), sin almacenamiento de objetos externo. Nunca se sirven como estáticos públicos: la descarga pasa por la API, que aplica las mismas reglas de rol y propiedad que el recurso al que pertenecen (RNF-012). Sobreviven al reinicio y al redespliegue del contenedor (RNF-008). **Límites:** máximo 10 MB por fichero (si se supera, `413`) y solo PDF, ZIP, PNG, JPG, DOCX u ODT, comprobando el tipo real del contenido y no solo la extensión (si no, `415`); el cliente valida lo mismo antes de enviar, con mensaje accesible. Los recursos de tipo VIDEO y ENLACE son URLs, no ficheros subidos. El contrato de subida (`multipart/form-data`) y descarga se añade a §12 antes de desbloquear las tareas de ficheros de `002` y `003`. |
 
 > **Nota (2026-09-22):** RNF-002, RNF-003, RNF-011, RNF-012 y RNF-013 resuelven las consideraciones
 > abiertas CA-03, CA-04 y (parcialmente) CA-05 de §13 — ver esa sección para el detalle de qué
@@ -323,13 +359,14 @@ Característica: Accesibilidad
 
 | Entidad | Atributos clave | Relaciones |
 |---|---|---|
-| **Usuario** | id, nombre, apellidos, email (único), passwordHash, rol {ADMINISTRADOR, DOCENTE, ALUMNO}, activo, fechaAlta | 1–N con Modulo (como docente responsable); N–M con Modulo vía Matricula (como alumno) |
+| **Usuario** | id, nombre, apellidos, email (único), passwordHash, rol {ADMINISTRADOR, DOCENTE, ALUMNO}, activo, debeCambiarPassword (RF-017), fechaAlta | 1–N con Modulo (como docente responsable); N–M con Modulo vía Matricula (como alumno) |
 | **Modulo** | id, codigo (único, p. ej. `MF0491_3`), nombre, horas, docenteResponsableId | 1–N con UnidadFormativa; 1–N con Anuncio; N–M con Usuario vía Matricula |
 | **UnidadFormativa** | id, moduloId, codigo (p. ej. `UF1841`), nombre, horas, orden | 1–N con Tarea; 1–N con Recurso |
 | **Matricula** | id, alumnoId, moduloId, fechaMatricula, estado {ACTIVA, BAJA} | N–M entre Usuario y Modulo |
 | **Tarea** | id, unidadFormativaId, titulo, descripcion, fechaPublicacion, fechaLimite, estado {BORRADOR, PUBLICADA} | 1–N con Entrega |
 | **Entrega** | id, tareaId, alumnoId, fechaEntrega, ficheroUrl, comentario, estado {PENDIENTE, ENTREGADA, ENTREGADA_FUERA_DE_PLAZO, CALIFICADA} | 1–1 con Evaluacion |
 | **Evaluacion** | id, entregaId, calificacion (0–10), observaciones, evaluadorId, fechaEvaluacion | pertenece a Entrega |
+| **HistorialEvaluacion** | id, evaluacionId, autorCambioId, fechaCambio, calificacionAnterior (nula en el primer registro), calificacionNueva, observacionesAnteriores, observacionesNuevas | pertenece a Evaluacion (N–1); solo inserción (RF-016) |
 | **Recurso** | id, unidadFormativaId, titulo, tipo {DOCUMENTO, VIDEO, ENLACE}, url, descripcion, fechaPublicacion | pertenece a UnidadFormativa |
 | **Anuncio** | id, moduloId, autorId, titulo, contenido, fechaPublicacion, destacado | pertenece a Modulo |
 
@@ -347,6 +384,8 @@ erDiagram
     TAREA ||--o{ ENTREGA : recibe
     USUARIO ||--o{ ENTREGA : "entrega (alumno)"
     ENTREGA ||--o| EVALUACION : tiene
+    EVALUACION ||--o{ HISTORIAL_EVALUACION : "registra cambios en"
+    USUARIO ||--o{ HISTORIAL_EVALUACION : "modifica (docente)"
     USUARIO ||--o{ EVALUACION : "evalúa (docente)"
     USUARIO ||--o{ ANUNCIO : "publica (docente)"
     USUARIO ||--o{ RECURSO : "publica (docente)"
@@ -359,6 +398,7 @@ erDiagram
         string passwordHash
         enum rol
         boolean activo
+        boolean debeCambiarPassword
     }
     MODULO {
         uuid id PK
@@ -407,6 +447,16 @@ erDiagram
         text observaciones
         uuid evaluadorId FK
         datetime fechaEvaluacion
+    }
+    HISTORIAL_EVALUACION {
+        uuid id PK
+        uuid evaluacionId FK
+        uuid autorCambioId FK
+        datetime fechaCambio
+        decimal calificacionAnterior
+        decimal calificacionNueva
+        text observacionesAnteriores
+        text observacionesNuevas
     }
     RECURSO {
         uuid id PK
@@ -459,7 +509,7 @@ flowchart LR
 | Requisito | Unidad de competencia | Módulo formativo | Unidad formativa |
 |---|---|---|---|
 | RF-001, RF-002, RF-011, RF-012 (parte cliente) | UC0491_3 — Desarrollar elementos software en el entorno cliente | MF0491_3 | UF1841 (marcado/formularios), UF1842 (componentes/AJAX), UF1843 (accesibilidad) |
-| RF-001, RF-003, RF-004, RF-005, RF-006, RF-007, RF-008, RF-009, RF-010, RF-012, RF-013, RF-014, RF-015 (parte servidor) | UC0492_3 — Desarrollar elementos software en el entorno servidor | MF0492_3 | UF1844 (POO/MVC), UF1845 (acceso a datos/SQL), UF1846 (servicios REST) |
+| RF-001, RF-003, RF-004, RF-005, RF-006, RF-007, RF-008, RF-009, RF-010, RF-012, RF-013, RF-014, RF-015, RF-016, RF-017 (parte servidor) | UC0492_3 — Desarrollar elementos software en el entorno servidor | MF0492_3 | UF1844 (POO/MVC), UF1845 (acceso a datos/SQL), UF1846 (servicios REST) |
 | RF-011, RF-014, RF-015 (despliegue, doc., pruebas) | UC0493_3 — Implementar, verificar y documentar aplicaciones web | MF0493_3 | — (módulo único) |
 | RNF-004, RNF-005 | UC0491_3 | MF0491_3 | UF1843 |
 | RNF-002, RNF-003 | UC0492_3, UC0493_3 | MF0492_3, MF0493_3 | UF1844, UF1846 |
@@ -518,6 +568,8 @@ donde se indique público.
 | GET | `/usuarios/{id}` | ADMINISTRADOR, propio usuario | Detalle de usuario | 200 |
 | PUT | `/usuarios/{id}` | ADMINISTRADOR, propio usuario | Edita usuario | 200 |
 | DELETE | `/usuarios/{id}` | ADMINISTRADOR | Baja lógica de usuario | 204 |
+| POST | `/usuarios/{id}/restablecer-password` | ADMINISTRADOR | Asigna una contraseña temporal y obliga a cambiarla en el siguiente acceso (RF-017) | 204 |
+| PUT | `/usuarios/{id}/password` | Propio usuario | Cambia la propia contraseña (pide la actual); desactiva la obligación de cambio de RF-017 | 204 |
 | GET | `/modulos` | Autenticado | Lista módulos (filtrable por docente) | 200 |
 | POST | `/modulos` | ADMINISTRADOR | Crea módulo | 201 |
 | PUT | `/modulos/{id}` | ADMINISTRADOR | Edita módulo | 200 |
@@ -527,9 +579,10 @@ donde se indique público.
 | GET | `/unidades-formativas/{id}/tareas` | Autenticado (matriculado o docente) | Lista tareas de la unidad formativa | 200 |
 | POST | `/unidades-formativas/{id}/tareas` | DOCENTE (del módulo) | Crea una tarea | 201 |
 | PUT | `/tareas/{id}` | DOCENTE (autor) | Edita una tarea | 200 |
-| POST | `/tareas/{id}/entregas` | ALUMNO (matriculado) | Registra una entrega | 201 |
+| POST | `/tareas/{id}/entregas` | ALUMNO (matriculado) | Registra la entrega del alumno, o la reemplaza si aún no está calificada (RF-003); `409` si ya está calificada | 201 (nueva) / 200 (reemplazo) |
 | GET | `/tareas/{id}/entregas` | DOCENTE (del módulo) | Lista entregas de una tarea | 200 |
-| PUT | `/entregas/{id}/evaluacion` | DOCENTE (del módulo) | Registra/edita la calificación de una entrega | 200 |
+| PUT | `/entregas/{id}/evaluacion` | DOCENTE (del módulo) | Registra/edita la calificación de una entrega; cada cambio queda en el historial (RF-016) | 200 |
+| GET | `/entregas/{id}/evaluacion/historial` | DOCENTE (del módulo), ADMINISTRADOR | Historial de cambios de la calificación, del más reciente al más antiguo (RF-016) | 200 |
 | GET | `/alumnos/{id}/calificaciones` | ALUMNO (propio), DOCENTE | Lista calificaciones de un alumno | 200 |
 | GET | `/unidades-formativas/{id}/recursos` | Autenticado (matriculado o docente) | Lista recursos de la unidad formativa | 200 |
 | POST | `/unidades-formativas/{id}/recursos` | DOCENTE (del módulo) | Publica un recurso | 201 |
@@ -538,6 +591,7 @@ donde se indique público.
 
 **Códigos de error estandarizados:** `400` (validación), `401` (no autenticado), `403` (sin
 permiso sobre el recurso), `404` (no encontrado), `409` (conflicto, p. ej. código duplicado),
+`413` (fichero adjunto de más de 10 MB), `415` (tipo de fichero no permitido, ver RNF-014),
 `422` (regla de negocio violada, p. ej. calificación fuera de rango), `500` (error no controlado,
 respuesta genérica sin detalles internos).
 
@@ -563,12 +617,12 @@ registro histórico de la conversación que las cerró.
 
 | # | Consideración | Estado | Por qué importaba / decisión tomada |
 |---|---|---|---|
-| CA-01 | Ubicación de almacenamiento de ficheros adjuntos (Entrega/Recurso): disco del contenedor, objeto (MinIO/S3) u otro | **Abierta** | Sin esto, `ficheroUrl` no es implementable de forma realista ni reproducible entre entornos |
-| CA-02 | Flujo de recuperación de contraseña ("olvidé mi contraseña") | **Abierta** | RF-014 solo cubre login/refresh; sin esto no hay forma de recuperar acceso |
+| ~~CA-01~~ | ~~Ubicación de almacenamiento de ficheros adjuntos (Entrega/Recurso): disco del contenedor, objeto (MinIO/S3) u otro~~ | **Resuelta (2026-09-23)** | Subida real a volumen persistente del servidor, descarga a través de la API con control de permisos — ver RNF-014. Consecuencia: el cliente de `001` (hoy un campo de URL de texto) debe pasar a subida de fichero cuando §12 incorpore el contrato de subida/descarga |
+| ~~CA-02~~ | ~~Flujo de recuperación de contraseña ("olvidé mi contraseña")~~ | **Resuelta (2026-09-23)** | Sin autoservicio en v1.0: el ADMINISTRADOR asigna una contraseña temporal que debe cambiarse en el siguiente acceso — ver RF-017 |
 | ~~CA-03~~ | ~~Límite de intentos (rate limiting) en `/auth/login`~~ | **Resuelta (2026-09-22)** | Bucket4j, clave IP+usuario, `429` a partir de 5 intentos/15 min — ver RNF-011 |
 | ~~CA-04~~ | ~~Dónde guarda el cliente el JWT: `localStorage` vs. cookie `httpOnly`~~ | **Resuelta (2026-09-22)** | Refresh token en cookie `httpOnly`+`Secure`+`SameSite=Strict`; access token en memoria; CSRF por doble token — ver RNF-002/RNF-003 y ADR-0002 |
 | CA-05 | Base legal RGPD/LOPDGDD y política de retención para datos de alumnado (posible minoría de edad) | **Parcialmente resuelta** | Cifrado en reposo: a nivel de infraestructura, no de columna (ver RNF-013, ADR-0002). Mecanismo técnico de anonimización real ya diseñado (RNF-013). **Sigue sin decidir:** la base legal concreta (consentimiento vs. interés legítimo del centro), el plazo de retención, y si hay alumnado menor de edad en el ciclo real — esto es una decisión legal/administrativa, no técnica, y no la puedo tomar por ti |
-| CA-06 | Auditoría de quién modifica una calificación, más allá de `fechaModificacion` | **Abierta** | Relevante si más de un docente puede calificar en el mismo módulo |
+| ~~CA-06~~ | ~~Auditoría de quién modifica una calificación, más allá de `fechaModificacion`~~ | **Resuelta (2026-09-23)** | Historial inmutable de cada cambio (quién, cuándo, valores anterior y nuevo), consultable por el docente del módulo y el ADMINISTRADOR — ver RF-016 y la entidad HistorialEvaluacion |
 | CA-07 | Licencia del repositorio | **Abierta** | Sin decidir; no bloquea el desarrollo pero sí la posible reutilización externa |
 | CA-08 | Infraestructura de despliegue en `prod`: VPS existente (CloudPanel) vs. nuevo | **Abierta** | Afecta directamente a `003-implantacion/plan.md` |
 | CA-09 | Tamaño real esperado del ciclo (nº de alumnado) para calibrar las pruebas de carga | **Abierta** | El umbral actual de RNF-001 (50 VUs) es un valor por defecto, no confirmado |
