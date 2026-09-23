@@ -1,0 +1,8 @@
+node_modules
+dist
+coverage
+public/mockServiceWorker.js
+postcss.config.js
+tailwind.config.js
+vite.config.js
+vitest.a11y.config.js

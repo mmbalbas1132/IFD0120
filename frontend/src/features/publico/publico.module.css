@@ -1,0 +1,26 @@
+.contenedor {
+  padding: var(--espacio-md);
+  max-width: 60rem;
+  margin: 0 auto;
+}
+
+.listaModulos {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: var(--espacio-md);
+  grid-template-columns: 1fr;
+}
+
+.tarjeta {
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-borde);
+  padding: var(--espacio-md);
+}
+
+/* Mobile-first: 2 columnas a partir de 768px (RNF-005/006). */
+@media (min-width: 768px) {
+  .listaModulos {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

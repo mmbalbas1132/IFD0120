@@ -1,0 +1,5 @@
+/* Solo utilidades/componentes de Tailwind (sin @tailwind base — ver tailwind.config.js). Las
+   clases generadas aquí están limitadas por `content` a src/features/admin/**; escribir una
+   clase Tailwind fuera de esa carpeta no genera estilo (plan.md §5, regla 1). */
+@tailwind components;
+@tailwind utilities;

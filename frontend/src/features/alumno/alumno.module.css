@@ -1,0 +1,89 @@
+.contenedor {
+  padding: var(--espacio-md);
+  max-width: 50rem;
+  margin: 0 auto;
+}
+
+.selector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-sm);
+  margin-bottom: var(--espacio-lg);
+}
+
+.listaTareas {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-sm);
+}
+
+.filaTarea {
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-borde);
+  padding: var(--espacio-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-sm);
+}
+
+.etiquetaEstado {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: var(--tamano-pequeno);
+  font-weight: 600;
+  width: fit-content;
+}
+
+.estadoEntregada {
+  composes: etiquetaEstado;
+  background-color: var(--color-exito-fondo);
+  color: var(--color-exito);
+}
+
+.estadoFueraDePlazo {
+  composes: etiquetaEstado;
+  background-color: var(--color-error-fondo);
+  color: var(--color-error);
+}
+
+.estadoCalificada {
+  composes: etiquetaEstado;
+  background-color: var(--color-primario);
+  color: var(--color-texto-inverso);
+}
+
+.estadoPendiente {
+  composes: etiquetaEstado;
+  background-color: var(--color-aviso-fondo);
+  color: var(--color-aviso);
+}
+
+.tablaCalificaciones {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tablaCalificaciones caption {
+  text-align: left;
+  font-weight: 600;
+  margin-bottom: var(--espacio-sm);
+}
+
+.tablaCalificaciones th,
+.tablaCalificaciones td {
+  text-align: left;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--color-borde);
+}
+
+/* Mobile-first: en pantallas ≥480px, la fila de tarea coloca acciones a la derecha. */
+@media (min-width: 480px) {
+  .filaTarea {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
