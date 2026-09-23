@@ -4,7 +4,9 @@ import { useParams } from 'react-router-dom'
 import { listarEntregasDeTarea } from '../../api/entregasApi.js'
 import { calificarEntrega } from '../../api/evaluacionesApi.js'
 import Alerta from '../../components/compartidos/Alerta.jsx'
+import AdjuntoDescargable from '../../components/compartidos/AdjuntoDescargable.jsx'
 import FormularioCalificacion from './FormularioCalificacion.jsx'
+import HistorialCalificacion from './HistorialCalificacion.jsx'
 import estilos from './docente.module.css'
 
 const ETIQUETA_ESTADO = {
@@ -54,11 +56,14 @@ export default function ListaEntregas() {
               <p>{ETIQUETA_ESTADO[entrega.estado] ?? entrega.estado}</p>
               <p>Entregada: {new Date(entrega.fechaEntrega).toLocaleString('es-ES')}</p>
               {entrega.comentario && <p>«{entrega.comentario}»</p>}
+              <AdjuntoDescargable adjunto={entrega.adjunto} />
               {entrega.evaluacion && (
                 <p>
-                  Nota actual: {entrega.evaluacion.calificacion} — {entrega.evaluacion.observaciones}
+                  Nota actual: {entrega.evaluacion.calificacion} —{' '}
+                  {entrega.evaluacion.observaciones}
                 </p>
               )}
+              {entrega.evaluacion && <HistorialCalificacion entregaId={entrega.id} />}
             </div>
             {entregaSeleccionadaId === entrega.id ? (
               <FormularioCalificacion

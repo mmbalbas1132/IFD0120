@@ -10,10 +10,37 @@ import {
   conflicto,
   obtenerSesion,
 } from './utils.js'
+import { validarPasswordNueva } from '../../utils/password.js'
 
 function serializarUsuario(u) {
-  const { id, nombre, apellidos, email, rol, activo, fechaAlta } = u
-  return { id, nombre, apellidos, email, rol, activo, fechaAlta }
+  const { id, nombre, apellidos, email, rol, activo, fechaAlta, debeCambiarPassword } = u
+  return { id, nombre, apellidos, email, rol, activo, fechaAlta, debeCambiarPassword }
+}
+
+// RF-017: contraseña temporal aleatoria que cumple RF-018 (una de cada clase + relleno aleatorio).
+const MAYUSCULAS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
+const MINUSCULAS = 'abcdefghijkmnpqrstuvwxyz'
+const NUMEROS = '23456789'
+const SIMBOLOS = '!@#$%&*?'
+
+function caracterAleatorio(alfabeto) {
+  const [valor] = crypto.getRandomValues(new Uint32Array(1))
+  return alfabeto[valor % alfabeto.length]
+}
+
+function generarPasswordTemporal() {
+  const todos = MAYUSCULAS + MINUSCULAS + NUMEROS + SIMBOLOS
+  const caracteres = [
+    caracterAleatorio(MAYUSCULAS),
+    caracterAleatorio(NUMEROS),
+    caracterAleatorio(SIMBOLOS),
+    ...Array.from({ length: 9 }, () => caracterAleatorio(todos)),
+  ]
+  for (let i = caracteres.length - 1; i > 0; i -= 1) {
+    const j = crypto.getRandomValues(new Uint32Array(1))[0] % (i + 1)
+    ;[caracteres[i], caracteres[j]] = [caracteres[j], caracteres[i]]
+  }
+  return caracteres.join('')
 }
 
 export const usuariosHandlers = [
@@ -58,6 +85,7 @@ export const usuariosHandlers = [
       email,
       rol,
       activo: true,
+      debeCambiarPassword: false,
       fechaAlta: new Date().toISOString().slice(0, 10),
     }
     db.usuarios.push(nuevo)
@@ -90,6 +118,42 @@ export const usuariosHandlers = [
     if (sesion.rol !== 'ADMINISTRADOR') delete cuerpo.rol
     Object.assign(usuario, cuerpo)
     return HttpResponse.json(serializarUsuario(usuario))
+  }),
+
+  // RF-017: el servidor genera la temporal y la devuelve una sola vez.
+  http.post(`${BASE}/usuarios/:id/restablecer-password`, ({ request, params }) => {
+    const path = `/api/v1/usuarios/${params.id}/restablecer-password`
+    const sesion = obtenerSesion(request)
+    if (!sesion) return noAutenticado(path)
+    if (sesion.rol !== 'ADMINISTRADOR') return sinPermiso(path)
+    if (!csrfValido(request)) return sinPermiso(path)
+
+    const usuario = db.usuarios.find((u) => u.id === params.id)
+    if (!usuario) return noEncontrado(path)
+    const passwordTemporal = generarPasswordTemporal()
+    db.credenciales.set(usuario.id, passwordTemporal)
+    usuario.debeCambiarPassword = true
+    return HttpResponse.json({ passwordTemporal })
+  }),
+
+  // RF-018: cambio de la propia contraseña; desactiva la obligación de RF-017.
+  http.put(`${BASE}/usuarios/:id/password`, async ({ request, params }) => {
+    const path = `/api/v1/usuarios/${params.id}/password`
+    const sesion = obtenerSesion(request)
+    if (!sesion) return noAutenticado(path)
+    if (sesion.userId !== params.id) return sinPermiso(path)
+    if (!csrfValido(request)) return sinPermiso(path)
+
+    const { passwordActual, passwordNueva } = (await request.json().catch(() => null)) ?? {}
+    if (passwordActual !== db.credenciales.get(sesion.userId)) {
+      return validacion('La contraseña actual no es correcta', path)
+    }
+    const error = validarPasswordNueva(passwordNueva, passwordActual)
+    if (error) return validacion(error, path)
+
+    db.credenciales.set(sesion.userId, passwordNueva)
+    sesion.usuario.debeCambiarPassword = false
+    return new HttpResponse(null, { status: 204 })
   }),
 
   http.delete(`${BASE}/usuarios/:id`, ({ request, params }) => {

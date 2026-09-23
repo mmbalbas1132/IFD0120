@@ -9,6 +9,7 @@ export const tareas = [
     fechaPublicacion: '2026-09-01T09:00:00Z',
     fechaLimite: '2026-10-15T23:59:00Z',
     estado: 'PUBLICADA',
+    adjunto: null,
   },
   {
     id: 't-2',
@@ -18,6 +19,7 @@ export const tareas = [
     fechaPublicacion: '2026-08-20T09:00:00Z',
     fechaLimite: '2026-09-10T23:59:00Z',
     estado: 'PUBLICADA',
+    adjunto: null,
   },
   {
     id: 't-3',
@@ -27,6 +29,7 @@ export const tareas = [
     fechaPublicacion: '2026-09-15T09:00:00Z',
     fechaLimite: '2026-11-01T23:59:00Z',
     estado: 'PUBLICADA',
+    adjunto: null,
   },
   {
     id: 't-4',
@@ -36,6 +39,7 @@ export const tareas = [
     fechaPublicacion: '2026-09-10T09:00:00Z',
     fechaLimite: '2026-10-20T23:59:00Z',
     estado: 'PUBLICADA',
+    adjunto: null,
   },
 ]
 

@@ -5,13 +5,8 @@ import { useAuth } from './AuthContext.jsx'
 import CampoTexto from '../components/compartidos/CampoTexto.jsx'
 import Boton from '../components/compartidos/Boton.jsx'
 import Alerta from '../components/compartidos/Alerta.jsx'
+import { RUTA_CAMBIAR_PASSWORD, RUTA_POR_ROL } from './rutas.js'
 import estilos from './auth.module.css'
-
-const RUTA_POR_ROL = {
-  ADMINISTRADOR: '/admin/usuarios',
-  DOCENTE: '/docente/tareas',
-  ALUMNO: '/alumno/tareas',
-}
 
 export default function PaginaLogin() {
   const {
@@ -28,7 +23,10 @@ export default function PaginaLogin() {
     setErrorGeneral(null)
     try {
       const usuario = await iniciarSesion(datos.email, datos.password)
-      const destino = location.state?.desde?.pathname ?? RUTA_POR_ROL[usuario.rol] ?? '/'
+      // RF-017: con una contraseña temporal, lo primero es cambiarla.
+      const destino = usuario.debeCambiarPassword
+        ? RUTA_CAMBIAR_PASSWORD
+        : (location.state?.desde?.pathname ?? RUTA_POR_ROL[usuario.rol] ?? '/')
       navegar(destino, { replace: true })
     } catch (error) {
       setErrorGeneral(error.message)
@@ -61,4 +59,3 @@ export default function PaginaLogin() {
     </main>
   )
 }
-

@@ -61,3 +61,11 @@
     align-items: center;
   }
 }
+
+/* RF-016: historial de cambios de una calificación. */
+.historial {
+  margin: var(--espacio-sm) 0 0;
+  padding-left: var(--espacio-lg);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}

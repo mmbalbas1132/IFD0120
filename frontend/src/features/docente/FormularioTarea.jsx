@@ -5,9 +5,11 @@ import { useForm } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 import { useModulosConUnidades } from '../../hooks/useModulosConUnidades.js'
 import { crearTarea, listarTareasDeUnidad } from '../../api/tareasApi.js'
+import { ACCEPT_ADJUNTOS, validarFichero } from '../../utils/adjuntos.js'
 import CampoTexto from '../../components/compartidos/CampoTexto.jsx'
 import Boton from '../../components/compartidos/Boton.jsx'
 import Alerta from '../../components/compartidos/Alerta.jsx'
+import AdjuntoDescargable from '../../components/compartidos/AdjuntoDescargable.jsx'
 import estilos from './docente.module.css'
 
 export default function FormularioTarea() {
@@ -38,7 +40,7 @@ export default function FormularioTarea() {
   async function alEnviar(datos) {
     setErrorGeneral(null)
     try {
-      await crearTarea(unidadId, datos)
+      await crearTarea(unidadId, { ...datos, fichero: datos.fichero?.[0] }) // RF-001, RNF-014
       reset()
       recargarTareas(unidadId)
     } catch (error) {
@@ -92,6 +94,16 @@ export default function FormularioTarea() {
               valor > hoyISO || 'La fecha límite debe ser posterior a la fecha actual',
           })}
         />
+        <CampoTexto
+          etiqueta="Fichero adjunto (opcional)"
+          type="file"
+          accept={ACCEPT_ADJUNTOS}
+          ayuda="Un solo fichero de hasta 10 MB: PDF, ZIP, PNG, JPG, DOCX u ODT."
+          error={errors.fichero?.message}
+          {...register('fichero', {
+            validate: (ficheros) => validarFichero(ficheros?.[0]) ?? true,
+          })}
+        />
         <Boton type="submit" disabled={isSubmitting || !unidadId}>
           {isSubmitting ? 'Publicando…' : 'Publicar tarea'}
         </Boton>
@@ -104,6 +116,7 @@ export default function FormularioTarea() {
             <div>
               <strong>{tarea.titulo}</strong>
               <p>Fecha límite: {new Date(tarea.fechaLimite).toLocaleString('es-ES')}</p>
+              <AdjuntoDescargable adjunto={tarea.adjunto} />
             </div>
             <Link to={`/docente/tareas/${tarea.id}/entregas`}>Ver entregas</Link>
           </li>

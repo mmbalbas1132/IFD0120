@@ -48,6 +48,11 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
+  // RF-017/RF-018: tras cambiar la contraseña desaparece la obligación de cambiarla.
+  const marcarPasswordCambiada = useCallback(() => {
+    setUsuario((actual) => (actual ? { ...actual, debeCambiarPassword: false } : actual))
+  }, [])
+
   const cerrarSesion = useCallback(async () => {
     try {
       await logoutApi()
@@ -62,12 +67,21 @@ export function AuthProvider({ children }) {
       usuario,
       rol: usuario?.rol ?? null,
       autenticado: Boolean(usuario),
+      debeCambiarPassword: Boolean(usuario?.debeCambiarPassword),
       cargandoSesionInicial,
       errorSesion,
       iniciarSesion,
       cerrarSesion,
+      marcarPasswordCambiada,
     }),
-    [usuario, cargandoSesionInicial, errorSesion, iniciarSesion, cerrarSesion],
+    [
+      usuario,
+      cargandoSesionInicial,
+      errorSesion,
+      iniciarSesion,
+      cerrarSesion,
+      marcarPasswordCambiada,
+    ],
   )
 
   return <AuthContext.Provider value={valor}>{children}</AuthContext.Provider>

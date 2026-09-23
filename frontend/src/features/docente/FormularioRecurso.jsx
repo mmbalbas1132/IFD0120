@@ -1,12 +1,14 @@
 // HU-07 / RF-012: publica un recurso didáctico (DOCUMENTO, VIDEO o ENLACE) en una unidad
-// formativa del módulo del docente.
+// formativa del módulo del docente. Un DOCUMENTO lleva un fichero subido; VIDEO y ENLACE, una URL.
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useModulosConUnidades } from '../../hooks/useModulosConUnidades.js'
 import { crearRecurso, listarRecursosDeUnidad } from '../../api/recursosApi.js'
+import { ACCEPT_ADJUNTOS, validarFichero } from '../../utils/adjuntos.js'
 import CampoTexto from '../../components/compartidos/CampoTexto.jsx'
 import Boton from '../../components/compartidos/Boton.jsx'
 import Alerta from '../../components/compartidos/Alerta.jsx'
+import AdjuntoDescargable from '../../components/compartidos/AdjuntoDescargable.jsx'
 import estilos from './docente.module.css'
 
 const TIPOS = ['DOCUMENTO', 'VIDEO', 'ENLACE']
@@ -21,8 +23,11 @@ export default function FormularioRecurso() {
     register,
     handleSubmit,
     reset,
+    watch,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm({ defaultValues: { tipo: 'ENLACE' } })
+  const esDocumento = watch('tipo') === 'DOCUMENTO'
 
   useEffect(() => {
     if (!unidadId && unidades.length > 0) setUnidadId(unidades[0].id)
@@ -39,7 +44,13 @@ export default function FormularioRecurso() {
   async function alEnviar(datos) {
     setErrorGeneral(null)
     try {
-      await crearRecurso(unidadId, datos)
+      const { titulo, tipo, descripcion, url, fichero } = datos
+      await crearRecurso(
+        unidadId,
+        tipo === 'DOCUMENTO'
+          ? { titulo, tipo, descripcion, fichero: fichero?.[0] }
+          : { titulo, tipo, descripcion, url },
+      )
       reset({ tipo: 'ENLACE' })
       recargar(unidadId)
     } catch (error) {
@@ -86,12 +97,32 @@ export default function FormularioRecurso() {
             </option>
           ))}
         </CampoTexto>
-        <CampoTexto
-          etiqueta="URL"
-          type="url"
-          error={errors.url?.message}
-          {...register('url', { required: 'La URL es obligatoria' })}
-        />
+        {esDocumento ? (
+          <CampoTexto
+            etiqueta="Fichero"
+            type="file"
+            accept={ACCEPT_ADJUNTOS}
+            ayuda="Un solo fichero de hasta 10 MB: PDF, ZIP, PNG, JPG, DOCX u ODT."
+            error={errors.fichero?.message}
+            {...register('fichero', {
+              validate: (ficheros) => {
+                if (getValues('tipo') !== 'DOCUMENTO') return true
+                if (!ficheros?.[0]) return 'Un recurso de tipo DOCUMENTO necesita un fichero'
+                return validarFichero(ficheros[0]) ?? true
+              },
+            })}
+          />
+        ) : (
+          <CampoTexto
+            etiqueta="URL"
+            type="url"
+            error={errors.url?.message}
+            {...register('url', {
+              validate: (valor) =>
+                getValues('tipo') === 'DOCUMENTO' || Boolean(valor) || 'La URL es obligatoria',
+            })}
+          />
+        )}
         <CampoTexto
           etiqueta="Descripción"
           as="textarea"
@@ -111,9 +142,13 @@ export default function FormularioRecurso() {
             <div>
               <strong>{recurso.titulo}</strong> ({recurso.tipo})
               <p>
-                <a href={recurso.url} target="_blank" rel="noreferrer">
-                  {recurso.url}
-                </a>
+                {recurso.adjunto ? (
+                  <AdjuntoDescargable adjunto={recurso.adjunto} />
+                ) : (
+                  <a href={recurso.url} target="_blank" rel="noreferrer">
+                    {recurso.url}
+                  </a>
+                )}
               </p>
             </div>
           </li>

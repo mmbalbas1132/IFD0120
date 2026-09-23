@@ -26,8 +26,10 @@ expone los 4 roles con la misma contraseña simulada para todos: **`Password123!
 
 El "backend" de este módulo es un objeto en memoria (`src/mocks/db.js`), sembrado desde
 `src/mocks/fixtures/*.js`. Crear una tarea/entrega/recurso/anuncio durante una sesión de
-`npm run dev` se refleja en las siguientes peticiones, pero **se pierde al cerrar la pestaña**
-(no es una base de datos real). La sesión de autenticación (cookies `refresh_token`/`csrf_token`
+`npm run dev` se refleja en las siguientes peticiones, pero **se pierde al recargar la página o
+cerrar la pestaña** (no es una base de datos real). Esto incluye los ficheros subidos, el historial
+de calificaciones y las contraseñas cambiadas o restablecidas: tras un F5, todas las cuentas vuelven
+a `Password123!`. La sesión de autenticación (cookies `refresh_token`/`csrf_token`
 + el registro de sesión asociado) sí sobrevive a un F5 real gracias a `sessionStorage` — ver el
 comentario al inicio de `src/mocks/db.js` para el porqué.
 
@@ -37,8 +39,8 @@ comentario al inicio de `src/mocks/db.js` para el porqué.
 npm run dev         # servidor de desarrollo con MSW activo
 npm run build        # build de producción (dist/)
 npm run preview       # sirve el build de producción
-npm run test          # Vitest — componentes, httpClient, contrato MSW, build sin mock (57 pruebas)
-npm run test:a11y     # Vitest + vitest-axe — 12 páginas, WCAG 2.2 AA, 0 violaciones críticas/serias
+npm run test          # Vitest — componentes, httpClient, contrato MSW, build sin mock (96 pruebas)
+npm run test:a11y     # Vitest + vitest-axe — 13 páginas, WCAG 2.2 AA, 0 violaciones críticas/serias
 npm run lint          # ESLint (incluye eslint-plugin-tailwindcss)
 npm run format         # Prettier
 ```
@@ -80,6 +82,14 @@ escrita fuera de `features/admin` no se compila.
   contrato real: si el servidor real no expone esos campos embebidos, `modulosApi.js` y las
   páginas que los consumen (`ListaTareas`, `FormularioTarea`, `FormularioRecurso`,
   `FormularioModulo`, `GestionMatriculas`) necesitarán ajustarse.
+- **Contraseña inicial de un usuario nuevo:** `POST /usuarios` (§12) no define contraseña, así que
+  un usuario recién creado en el mock no puede entrar hasta que el ADMINISTRADOR le restablezca la
+  contraseña (RF-017), que le da una temporal. Pendiente de decidir en la spec maestra si el alta
+  debe generar ya esa temporal.
+- **Subidas en las pruebas (jsdom):** `tests/setup.js` sustituye `FormData`/`File`/`Blob` de jsdom
+  por los nativos de Node, porque el `fetch` de Node no sabe enviar los de jsdom como
+  `multipart/form-data`. En el navegador real no hace falta; los flujos de subida y descarga se han
+  comprobado también en Chrome contra `npm run dev`.
 - **`npm run test:a11y` en jsdom:** axe-core registra internamente
   `Error: Not implemented: HTMLCanvasElement.prototype.getContext` en stderr durante la regla de
   contraste de color (jsdom no implementa Canvas). No hace fallar las pruebas, pero significa que
@@ -87,8 +97,8 @@ escrita fuera de `features/admin` no se compila.
   de `003-implantacion` (axe-core dentro de Playwright, navegador real) es la verificación
   definitiva de contraste.
 - **Responsive (TC.16):** los 3 breakpoints (480/768/1024px) están implementados con CSS
-  mobile-first en cada `*.module.css` (ver comentarios `@media` en cada uno). Verificados con 36
-  capturas a viewport exacto (12 rutas × 3 anchos, Playwright + Chrome): sin scroll horizontal
+  mobile-first en cada `*.module.css` (ver comentarios `@media` en cada uno). Verificados con 39
+  capturas a viewport exacto (13 rutas × 3 anchos, Playwright + Chrome): sin scroll horizontal
   ni solapes. Las tablas anchas se desplazan dentro de su propio contenedor enfocable, no la
   página. Las capturas se adjuntan al PR de cierre del módulo (ver nota de TC.16 en
   `specs/001-entorno-cliente/tasks.md`).

@@ -8,8 +8,10 @@ import {
   sinPermiso,
   noEncontrado,
   validacion,
+  leerCuerpo,
   obtenerSesion,
 } from './utils.js'
+import { errorDeFichero, guardarAdjunto } from './adjuntos.js'
 
 const TIPOS_VALIDOS = ['DOCUMENTO', 'VIDEO', 'ENLACE']
 
@@ -53,13 +55,24 @@ export const recursosHandlers = [
     }
     if (!csrfValido(request)) return sinPermiso(path)
 
-    const cuerpo = await request.json()
-    const { titulo, tipo, url, descripcion } = cuerpo || {}
-    if (!titulo || !tipo || !url) {
-      return validacion('titulo, tipo y url son obligatorios', path)
+    // RF-012 / §12: un DOCUMENTO lleva `fichero`; VIDEO y ENLACE, `url`.
+    const { campos, fichero } = await leerCuerpo(request)
+    const { titulo, tipo, url, descripcion } = campos
+    if (!titulo || !tipo) {
+      return validacion('titulo y tipo son obligatorios', path)
     }
     if (!TIPOS_VALIDOS.includes(tipo)) {
       return validacion(`tipo debe ser uno de: ${TIPOS_VALIDOS.join(', ')}`, path)
+    }
+    if (tipo === 'DOCUMENTO' && !fichero) {
+      return validacion('Un recurso de tipo DOCUMENTO necesita un fichero', path)
+    }
+    if (tipo !== 'DOCUMENTO' && !url) {
+      return validacion('Un recurso de tipo VIDEO o ENLACE necesita una URL', path)
+    }
+    if (fichero) {
+      const error = errorDeFichero(fichero, path)
+      if (error) return error
     }
 
     const nuevo = {
@@ -67,7 +80,8 @@ export const recursosHandlers = [
       unidadFormativaId: params.id,
       titulo,
       tipo,
-      url,
+      url: tipo === 'DOCUMENTO' ? null : url,
+      adjunto: tipo === 'DOCUMENTO' ? await guardarAdjunto(fichero, sesion.userId) : null,
       descripcion: descripcion ?? '',
       fechaPublicacion: new Date().toISOString(),
     }

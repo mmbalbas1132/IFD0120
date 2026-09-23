@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import NavPrincipal from './components/compartidos/NavPrincipal.jsx'
 import RutaProtegida from './auth/RutaProtegida.jsx'
 import PaginaLogin from './auth/PaginaLogin.jsx'
+import PaginaCambiarPassword from './auth/PaginaCambiarPassword.jsx'
 import PanelPublico from './features/publico/PanelPublico.jsx'
 import ListaTareas from './features/alumno/ListaTareas.jsx'
 import FormularioEntrega from './features/alumno/FormularioEntrega.jsx'
@@ -21,6 +22,14 @@ export default function App() {
       <Routes>
         <Route path="/" element={<PanelPublico />} />
         <Route path="/login" element={<PaginaLogin />} />
+        <Route
+          path="/cambiar-password"
+          element={
+            <RutaProtegida>
+              <PaginaCambiarPassword />
+            </RutaProtegida>
+          }
+        />
 
         <Route
           path="/alumno/tareas"

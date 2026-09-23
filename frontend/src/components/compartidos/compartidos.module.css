@@ -92,3 +92,26 @@
   border-color: var(--color-aviso);
   color: var(--color-aviso);
 }
+
+.ayuda {
+  font-size: 0.875rem;
+  color: var(--color-texto-suave);
+}
+
+/* RNF-014: botón de descarga con aspecto de enlace (es una acción, no navegación). */
+.botonDescarga {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-primario);
+  text-decoration: underline;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.botonDescarga:focus-visible {
+  outline: 2px solid var(--color-foco);
+  outline-offset: 2px;
+}

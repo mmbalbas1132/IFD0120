@@ -1,4 +1,7 @@
 // Fixtures de Recurso (spec.md §8): al menos los 3 tipos DOCUMENTO/VIDEO/ENLACE.
+import { serializarAdjuntoFixture, adjuntos } from './adjuntos.js'
+
+const ADJUNTO_GUIA = serializarAdjuntoFixture(adjuntos[0])
 export const recursos = [
   {
     id: 'r-1',
@@ -6,6 +9,7 @@ export const recursos = [
     titulo: 'MDN - Fetch API',
     tipo: 'ENLACE',
     url: 'https://developer.mozilla.org/es/docs/Web/API/Fetch_API',
+    adjunto: null,
     descripcion: 'Referencia oficial de la API Fetch.',
     fechaPublicacion: '2026-09-02T09:00:00Z',
   },
@@ -14,7 +18,8 @@ export const recursos = [
     unidadFormativaId: 'uf-1',
     titulo: 'Guía de formularios accesibles (PDF)',
     tipo: 'DOCUMENTO',
-    url: '/recursos/guia-formularios-accesibles.pdf',
+    url: null, // RF-012: un DOCUMENTO lleva fichero subido, no URL
+    adjunto: ADJUNTO_GUIA,
     descripcion: 'Checklist de accesibilidad para formularios web.',
     fechaPublicacion: '2026-09-03T09:00:00Z',
   },
@@ -24,6 +29,7 @@ export const recursos = [
     titulo: 'Introducción a los Web Components',
     tipo: 'VIDEO',
     url: 'https://example.org/videos/web-components-intro',
+    adjunto: null,
     descripcion: 'Vídeo introductorio con subtítulos en español.',
     fechaPublicacion: '2026-09-16T09:00:00Z',
   },
